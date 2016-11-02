@@ -1,0 +1,414 @@
+#!/bin/bash
+
+# =================================================================
+# BootableUSB v0.1
+# 
+# @link https://github.com/bugra9/BootableUSB
+# @author bugra9 https://github.com/bugra9
+# @contributors https://github.com/bugra9/BootableUSB/graphs/contributors
+# @license GPLv3
+# =================================================================
+
+# =================================================================
+# 					Bilgi Veren Sayfalar
+# =================================================================
+
+# Yardım sayfasını içerir.
+function displayHelp() {
+	echo "
+============================================
+bootableusb - Önyüklemeli USB sürücü oluştur
+
+Sürükle bırak yöntemiyle önyüklemeli usb sürücü oluşturur. 
+Fat32 dosya sistemi türünü destekleyen her işletim sisteminde çalışır.
+============================================
+
+bootableusb [SEÇENEKLER]... AYGIT
+
+AYGIT: Genellikle /dev/sdb, /dev/sdc gibi /dev/sdX biçiminde usb belleği gösteren aygıt adı
+
+--prepare: 
+	Usb belleği biçimlendirir ve grubu kurar.
+
+--installGrub: 
+	Eğer usb belleğin yapısı uygunsa grubu kurar.
+
+--extract isoPath: 
+	Eğer bellekte grub bulunuyorsa belirtilen iso kalıbını belleğe açar.
+
+--updateGrub: 
+	Bellekte bulunan grubu günceller.
+
+--repairGrub: 
+	Disk üzerindeki silinen / bozulan grubu tamir eder.
+
+
+-h, --help:
+	Yardım dosyasını görüntüler
+
+-v, --verbose:
+	Her adımda ne yapıldığını açıklar.
+
+--version:
+	Sürüm bilgisini gösterir.
+
+--listDevices:
+	Bilgisayara bağlı olan aygıtları listeler.
+	"
+}
+
+# Yazılım sürümünü yazdırır.
+function displayVersion() {
+	echo "bootableusb v0.1"
+}
+
+# Bilgisayara bağlı aygıtları listeler.
+function displayDevices() {
+	echo "==========================================="
+	echo "Bilgisayara Bağlı Cihazlar"
+	echo ""
+	lsblk -d -p -o MODEL,SIZE,NAME | grep "/dev/sd"
+	echo "==========================================="
+}
+
+# =================================================================
+# 					Yardımcı Fonksiyonlar
+# =================================================================
+
+# Fat32 türünde biçimlendirecek yazılım aranır. Yoksa hata iletisi gösterilip çıkış yapılır.
+function checkDependencies() {
+	if [ "$1" = 'mkdosfs' ]; then
+		mkdosfs=''
+		if which 'mkdosfs' > /dev/null; then
+			mkdosfs='mkdosfs'
+		elif which 'make.msdos' > /dev/null; then
+			mkdosfs='mkfs.msdos'
+		else
+			echo 'Hata: mkdosfs veya mkfs.msdos yazılımlarından biri bulunamadı!' >&2
+			exit 1
+		fi
+	fi
+}
+
+# Yazılım -v veya --verbose parametreleri ile başlatıldıysa iletinin gösterilmesini yoksa gösterilmemesini sağlar.
+function echoV() {
+	if [ "$verbose" = '1' ]; then
+		echo $1
+	fi
+}
+
+# Grub ayarlarını içerir ve bu ayarları /grub/grub.cfg dosyasına yazar.
+function writeGrubCfg() {
+	uuid=$(blkid -o value -s UUID "$partition")
+	echo "
+insmod fat
+search --no-floppy --fs-uuid $uuid --set root
+
+if [ -s /grub/grubenv ]; then
+  set have_grubenv=true
+  load_env
+fi
+function recordfail {
+  set recordfail=1
+  if [ -n \"\${have_grubenv}\" ]; then if [ -z \"\${boot_once}\" ]; then save_env recordfail; fi; fi
+}
+function load_video {
+  if [ x\$feature_all_video_module = xy ]; then
+    insmod all_video
+  else
+    insmod efi_gop
+    insmod efi_uga
+    insmod ieee1275_fb
+    insmod vbe
+    insmod vga
+    insmod video_bochs
+    insmod video_cirrus
+  fi
+}
+function gfxmode {
+	set gfxpayload=\"\${1}\"
+	if [ \"\${1}\" = \"keep\" ]; then
+		set vt_handoff=vt.handoff=7
+	else
+		set vt_handoff=
+	fi
+}
+
+if [ x\$feature_default_font_path = xy ] ; then
+   font=unicode
+else
+   font=\"/grub/fonts/unicode.pf2\"
+fi
+
+if loadfont \$font ; then
+  set gfxmode=auto
+  load_video
+  insmod gfxterm
+  set locale_dir=/grub/locale
+  set lang=tr_TR
+  insmod gettext
+fi
+terminal_output gfxterm
+
+menuentry \"Windows Kurulumu\" {
+	ntldr /bootmgr
+	boot
+}
+submenu \"Linux Kalıbından Başlat\" {
+	menuentry \"Ubuntu 64 Bit ISO\" {
+		set isofile=\"/linux.iso\"
+		loopback loop \$isofile
+		linux (loop)/casper/vmlinuz.efi boot=casper iso-scan/filename=\$isofile quiet splash noprompt noeject
+		initrd (loop)/casper/initrd.lz
+	}
+	menuentry \"Ubuntu 32 Bit ISO\" {
+		set isofile=\"/linux.iso\"
+		loopback loop \$isofile
+		linux (loop)/casper/vmlinuz boot=casper iso-scan/filename=\$isofile quiet splash noprompt noeject
+		initrd (loop)/casper/initrd.lz
+	}
+	menuentry \"Arch Linux ISO\" {
+		set isofile=\"/linux.iso\"
+		loopback loop \$isofile
+		linux (loop)/arch/boot/x86_64/vmlinuz archisodevice=/dev/loop0 img_dev=\$imgdevpath img_loop=\$isofile earlymodules=loop
+		initrd (loop)/arch/boot/x86_64/archiso.img
+	}
+	menuentry \"Linux Mint ISO\" {
+		set isofile=\"/linux.iso\"
+		loopback loop \$isofile
+		linux (loop)/casper/vmlinuz boot=casper iso-scan/filename=\$isofile noeject noprompt 
+		initrd (loop)/casper/initrd.lz
+	}
+	menuentry \"Debian ISO\" {
+		set isofile=\"/linux.iso\"
+		loopback loop \$isofile
+		linux (loop)/live/vmlinuz boot=live config fromiso=/dev/sdb2/\$isofile
+		initrd (loop)/live/initrd.img
+	}
+	menuentry \"SystemRescueCD ISO\" {
+		set isofile=\"/linux.iso\"
+		loopback loop \$isofile
+		linux (loop)/isolinux/rescue64 isoloop=\$isofile
+		initrd (loop)/isolinux/initram.igz
+	}
+}
+submenu \"Diskteki Grubu Aç\" {" > "$cfgPath" 
+	awk '/### BEGIN \/etc\/grub.d\/10_linux ###/,/### END \/etc\/grub.d\/10_linux ###/' /boot/grub/grub.cfg >> "$cfgPath"
+	echo "}" >> "$cfgPath" 
+}
+
+# /dev/sdX biçiminde belirtilen aygıtı sisteme bağlar.
+function mountUSB() {
+	partition=`ls --color=no -1 "$device"* | grep -ve "$device"'$'`
+	
+	echoV "Bölüm bağlı ise bağı kaldırılıyor."
+	if [ "$(mount | grep -c "$partition")" != 0 ]; then
+		umount "$partition"
+	fi
+	sleep 1
+
+	echoV "Bölüm belirlediğimiz yere bağlanıyor"
+	partitionPath="/media/bootableusb_$(date +%s)_$$"
+	cfgPath="$partitionPath/grub/grub.cfg" 
+	mkdir -p "$partitionPath"
+	mount "$partition" "$partitionPath"
+}
+
+# =================================================================
+# 					İşlemler
+# =================================================================
+
+# Diski biçimlendirip grubu yükler.
+function prepare() {
+	echo "Usb bellek hazırlanıyor..."
+	format
+	installGrub
+}
+
+# Diski biçimlendirir.
+function format() {
+	echo "Usb bellek biçimlendiriliyor..."
+	if grep -qs "$device"1 /proc/mounts; then
+		echoV "$device 1. bölüm ayrılıyor"
+		umount "$device"1
+	fi
+	if grep -qs "$device"2 /proc/mounts; then
+		echoV "$device 2. bölüm ayrılıyor"
+		umount "$device"2
+	fi
+	if grep -qs "$device"3 /proc/mounts; then
+		echoV "$device 3. bölüm ayrılıyor"
+		umount "$device"3
+	fi
+	checkDependencies mkdosfs
+	parted -s "$device" mklabel msdos
+	parted -s "$device" mkpart primary fat32 4MiB -- -1s
+	blockdev --rereadpt "$device" || true
+	partprobe "$device"
+	sleep 3
+	partition=`ls --color=no -1 "$device"* | grep -ve "$device"'$'`
+	"$mkdosfs" -F 32 -n 'BootableUSB' "$partition"
+
+	echoV "Biçimlendirme işlemi tamamlandı."
+	sleep 5
+}
+
+# Grubu yükler.
+function installGrub() {
+	echo "Grub yükleniyor..."
+
+	mountUSB
+
+	echoV "Grub yükleniyor"
+	grub-install --target=i386-pc --boot-directory="$partitionPath" "$device" 
+
+	echoV "Grub ayarları oluşturuluyor."
+	mkdir -p "$(dirname "$cfgPath")"
+
+	writeGrubCfg
+
+	umount $partitionPath
+	echoV "Grub yüklendi."
+}
+
+# Grub ayarlarını günceller.
+function updateGrub() {
+	echo "Grub ayarları güncelleniyor..."
+
+	mountUSB
+	writeGrubCfg
+	umount $partitionPath
+}
+
+# Kalıp dosyasını usb belleğin içine açar.
+function extract() {
+	echo "Kalıp çıkarılıyor..."
+
+	isoMountPath="/media/bootableusb_iso_$(date +%s)_$$"
+	mkdir -p "$isoMountPath"
+	if [ -f "$isoPath" ]; then
+		mount -o loop,ro -t udf,iso9660 "$isoPath" "$isoMountPath"
+	else
+		mount -o ro "$isoPath" "$isoMountPath"
+	fi
+
+	mountUSB
+
+	freeSpace=$(df --block-size 1 "$partitionPath" | grep "$partition" | awk '{print $4}')
+	neededSpace=$(du -s "$isoMountPath" --bytes | awk '{print $1}')
+	((neededSpace = neededSpace + 1000 * 1000 * 10))
+
+	if [ "$neededSpace" -gt "$freeSpace" ]; then
+		echo "Hata: Bellek üzerinde yeteri kadar boş alan yok." >&2
+		exit 1
+	fi
+
+	echo "Dosyalar kopyalanıyor..."
+	rsync -rlt --info=progress2 "$isoMountPath"/* "$partitionPath"/
+
+	umount $isoMountPath
+	umount $partitionPath
+	
+}
+
+# Diskteki grubu onarır.
+function repairGrub() {
+	echo "Grub onarılıyor..."
+}
+
+# Verilen parametrelere göre çalışma hazırlığını yapar.
+function main() {
+	while [ ! "$#" -eq 0 ]; do
+		case "$1" in
+			'--help'|'-h')
+				displayHelp
+				exit 0;;
+			'--version')
+				displayVersion
+				exit 0;;
+			'--listDevices')
+				displayDevices
+				exit 0;;
+			'--verbose'|'-v')
+				verbose='1';;
+			'--prepare')
+				method='prepare'
+				shift
+				device=$(readlink -f "$1");;
+			'--format')
+				method='format'
+				shift
+				device=$(readlink -f "$1");;
+			'--installGrub')
+				method='installGrub'
+				shift
+				device=$(readlink -f "$1");;
+			'--extract')
+				method='extract'
+				shift
+				isoPath=$(readlink -f "$1")
+				shift
+				device=$(readlink -f "$1");;
+			'--updateGrub')
+				method='updateGrub'
+				shift
+				device=$(readlink -f "$1");;
+			'--repairGrub')
+				method='repairGrub'
+				shift
+				device=$(readlink -f "$1");;
+			* )
+				echo "Hata: Bilinmeyen parametre \"$1\"!" >&2
+				exit 1;;
+		esac
+
+		shift
+	done
+
+	# Aygıt belirtilmediyse yazılım sonlandırılır.
+	if [ -z "$device" ]; then
+		echo "Hata: İşlem yapılacak aygıt belirtilmemiş!" >&2
+		echo "" >&2
+		displayHelp
+		exit 1
+	fi
+
+	# Yönetici yetkileriyle çalışmıyorsa yazılım sonlandırılır.
+	if [ ! $(id -u) = 0 ]; then
+		echo "Hata: Bu yazılımın çalışması için yönetici yetkilerine ihtiyacı var." >&2
+		echo "" >&2
+		exit 1
+	fi
+
+	case "$method" in
+		'prepare')
+			prepare
+			;;
+		'format')
+			format
+			;;
+		'installGrub')
+			installGrub
+			;;
+		'extract')
+			extract
+			;;
+		'updateGrub')
+			updateGrub
+			;;
+		'repairGrub')
+			repairGrub
+			;;
+		* )
+			echo "Hata: Herhangi bir işlem seçilmemiş!" >&2
+			displayHelp
+			exit 1;;
+	esac
+}
+
+isoPath=''
+method=''
+device=''
+verbose='0'
+
+main $1 $2 $3 $4 $5 $6
