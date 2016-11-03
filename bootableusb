@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # =================================================================
-# BootableUSB v0.1
+# BootableUSB v0.1.1
 # 
 # @link https://github.com/bugra9/BootableUSB
 # @author bugra9 https://github.com/bugra9
@@ -17,18 +17,23 @@
 function displayHelp() {
 	echo "
 ============================================
-bootableusb - Önyüklemeli USB sürücü oluştur
+bootableusb - Ön yüklemeli USB sürücü oluştur
 
-Sürükle bırak yöntemiyle önyüklemeli usb sürücü oluşturur. 
+Sürükle bırak yöntemiyle kullanılabilir ön yüklemeli usb sürücü oluşturur. 
 Fat32 dosya sistemi türünü destekleyen her işletim sisteminde çalışır.
 ============================================
 
 bootableusb [SEÇENEKLER]... AYGIT
 
-AYGIT: Genellikle /dev/sdb, /dev/sdc gibi /dev/sdX biçiminde usb belleği gösteren aygıt adı
+AYGIT: Genellikle /dev/sdb, /dev/sdc gibi /dev/sdX biçiminde usb belleği gösteren aygıt adı. bootableusb --listDevices komutuyla bağlı aygıtlar listelenip ilgili aygıt adı öğrenilir.
 
 --prepare: 
 	Usb belleği biçimlendirir ve grubu kurar.
+	Dikkat: Aygıt içerisinde bulunan tüm veriler silinecektir.
+
+--format: 
+	Usb belleği biçimlendirir.
+	Dikkat: Aygıt içerisinde bulunan tüm veriler silinecektir.
 
 --installGrub: 
 	Eğer usb belleğin yapısı uygunsa grubu kurar.
@@ -43,11 +48,11 @@ AYGIT: Genellikle /dev/sdb, /dev/sdc gibi /dev/sdX biçiminde usb belleği göst
 	Disk üzerindeki silinen / bozulan grubu tamir eder.
 
 
--h, --help:
-	Yardım dosyasını görüntüler
-
 -v, --verbose:
 	Her adımda ne yapıldığını açıklar.
+
+-h, --help:
+	Yardım dosyasını görüntüler
 
 --version:
 	Sürüm bilgisini gösterir.
@@ -59,7 +64,7 @@ AYGIT: Genellikle /dev/sdb, /dev/sdc gibi /dev/sdX biçiminde usb belleği göst
 
 # Yazılım sürümünü yazdırır.
 function displayVersion() {
-	echo "bootableusb v0.1"
+	echo "bootableusb v0.1.1"
 }
 
 # Bilgisayara bağlı aygıtları listeler.
@@ -125,14 +130,6 @@ function load_video {
     insmod video_cirrus
   fi
 }
-function gfxmode {
-	set gfxpayload=\"\${1}\"
-	if [ \"\${1}\" = \"keep\" ]; then
-		set vt_handoff=vt.handoff=7
-	else
-		set vt_handoff=
-	fi
-}
 
 if [ x\$feature_default_font_path = xy ] ; then
    font=unicode
@@ -155,46 +152,100 @@ menuentry \"Windows Kurulumu\" {
 	boot
 }
 submenu \"Linux Kalıbından Başlat\" {
-	menuentry \"Ubuntu 64 Bit ISO\" {
+	menuentry \"GParted\" {
 		set isofile=\"/linux.iso\"
 		loopback loop \$isofile
-		linux (loop)/casper/vmlinuz.efi boot=casper iso-scan/filename=\$isofile quiet splash noprompt noeject
-		initrd (loop)/casper/initrd.lz
-	}
-	menuentry \"Ubuntu 32 Bit ISO\" {
-		set isofile=\"/linux.iso\"
-		loopback loop \$isofile
-		linux (loop)/casper/vmlinuz boot=casper iso-scan/filename=\$isofile quiet splash noprompt noeject
-		initrd (loop)/casper/initrd.lz
-	}
-	menuentry \"Arch Linux ISO\" {
-		set isofile=\"/linux.iso\"
-		loopback loop \$isofile
-		linux (loop)/arch/boot/x86_64/vmlinuz archisodevice=/dev/loop0 img_dev=\$imgdevpath img_loop=\$isofile earlymodules=loop
-		initrd (loop)/arch/boot/x86_64/archiso.img
-	}
-	menuentry \"Linux Mint ISO\" {
-		set isofile=\"/linux.iso\"
-		loopback loop \$isofile
-		linux (loop)/casper/vmlinuz boot=casper iso-scan/filename=\$isofile noeject noprompt 
-		initrd (loop)/casper/initrd.lz
-	}
-	menuentry \"Debian ISO\" {
-		set isofile=\"/linux.iso\"
-		loopback loop \$isofile
-		linux (loop)/live/vmlinuz boot=live config fromiso=/dev/sdb2/\$isofile
+		linux (loop)/live/vmlinuz boot=live union=overlay username=user config components quiet noswap noeject toram=filesystem.squashfs ip=  nosplash findiso=\$isofile
 		initrd (loop)/live/initrd.img
 	}
-	menuentry \"SystemRescueCD ISO\" {
+	menuentry \"SystemRescueCD\" {
 		set isofile=\"/linux.iso\"
 		loopback loop \$isofile
 		linux (loop)/isolinux/rescue64 isoloop=\$isofile
 		initrd (loop)/isolinux/initram.igz
 	}
+	menuentry \"Ubuntu 64 Bit\" {
+		set isofile=\"/linux.iso\"
+		loopback loop \$isofile
+		linux (loop)/casper/vmlinuz.efi boot=casper iso-scan/filename=\$isofile quiet splash noprompt noeject
+		initrd (loop)/casper/initrd.lz
+	}
+	menuentry \"Ubuntu 64 Bit - Bellekten (RAM) Başlatma\" {
+		set isofile=\"/linux.iso\"
+		loopback loop \$isofile
+		linux (loop)/casper/vmlinuz.efi boot=casper iso-scan/filename=\$isofile quiet splash noprompt noeject toram
+		initrd (loop)/casper/initrd.lz
+	}
+	menuentry \"Ubuntu 32 Bit\" {
+		set isofile=\"/linux.iso\"
+		loopback loop \$isofile
+		linux (loop)/casper/vmlinuz boot=casper iso-scan/filename=\$isofile quiet splash noprompt noeject
+		initrd (loop)/casper/initrd.lz
+	}
+	menuentry \"Arch Linux\" {
+		set isofile=\"/linux.iso\"
+		loopback loop \$isofile
+		linux (loop)/arch/boot/x86_64/vmlinuz archisodevice=/dev/loop0 img_dev=\$imgdevpath img_loop=\$isofile earlymodules=loop
+		initrd (loop)/arch/boot/x86_64/archiso.img
+	}
+	menuentry \"Debian\" {
+		set isofile=\"/linux.iso\"
+		loopback loop \$isofile
+		linux (loop)/live/vmlinuz boot=live config fromiso=/dev/sdb2/\$isofile
+		initrd (loop)/live/initrd.img
+	}
+	menuentry \"Elementary OS\" {
+		set isofile=\"/linux.iso\"
+		loopback loop \$isofile
+		linux (loop)/casper/vmlinuz boot=casper iso-scan/filename=\$isofile
+		initrd (loop)/casper/initrd.lz
+	}
+	menuentry \"Fedora\" {
+		set isofile=\"/linux.iso\"
+		loopback loop \$isofile
+		linux (loop)/isolinux/vmlinuz root=live:CDLABEL=Fedora-WS-Live-24-1-2 iso-scan/filename=\$isofile rd.live.image quiet
+		initrd (loop)/isolinux/initrd.img
+	}
+	menuentry \"Gentoo\" {
+		set isofile=\"/linux.iso\"
+		loopback loop \$isofile
+		linux (loop)/isolinux/gentoo root=/dev/ram0 init=/linuxrc aufs looptype=squashfs loop=/image.squashfs cdroot isoboot=\$isofile vga=791 splash=silent,theme:default console=tty0
+		initrd (loop)/isolinux/gentoo.xz 
+	}
+	menuentry \"Kali Linux\" {
+		set isofile=\"/linux.iso\"
+		loopback loop \$isofile
+		linux (loop)/live/vmlinuz boot=live findiso=\$isofile noconfig=sudo username=root hostname=kali
+		initrd (loop)/live/initrd.img
+	}
+	menuentry \"Linux Mint\" {
+		set isofile=\"/linux.iso\"
+		loopback loop \$isofile
+		linux (loop)/casper/vmlinuz boot=casper iso-scan/filename=\$isofile noeject noprompt 
+		initrd (loop)/casper/initrd.lz
+	}
+	menuentry \"OpenSUSE Canlı\" {
+		set isofile=\"/linux.iso\"
+		loopback loop \$isofile
+		set imgdevpath=\"/dev/disk/by-uuid/$uuid\"
+		linux (loop)/boot/x86_64/loader/linux isofrom_device=\$imgdevpath isofrom_system=\$isofile LANG=en_US.UTF-8
+		initrd (loop)/boot/x86_64/loader/initrd
+	}
+	menuentry \"OpenSUSE Kurulum\" {
+		set isofile=\"/linux.iso\"
+		loopback loop \$isofile
+		linux (loop)/boot/x86_64/loader/linux install=hd:\$isofile
+		initrd (loop)/boot/x86_64/loader/initrd
+	}
+	menuentry \"Tails\" {
+		set isofile=\"/linux.iso\"
+		loopback loop \$isofile
+		linux (loop)/live/vmlinuz2 boot=live config findiso=\${isofile} live-media=removable apparmor=1 security=apparmor nopersistent noprompt timezone=Etc/UTC block.events_dfl_poll_msecs=1000 noautologin module=Tails
+    	initrd (loop)/live/initrd2.img
+	}
 }
-submenu \"Diskteki Grubu Aç\" {" > "$cfgPath" 
+" > "$cfgPath" 
 	awk '/### BEGIN \/etc\/grub.d\/10_linux ###/,/### END \/etc\/grub.d\/10_linux ###/' /boot/grub/grub.cfg >> "$cfgPath"
-	echo "}" >> "$cfgPath" 
 }
 
 # /dev/sdX biçiminde belirtilen aygıtı sisteme bağlar.
@@ -314,6 +365,7 @@ function extract() {
 # Diskteki grubu onarır.
 function repairGrub() {
 	echo "Grub onarılıyor..."
+	grub-install $device
 }
 
 # Verilen parametrelere göre çalışma hazırlığını yapar.
