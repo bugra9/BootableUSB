@@ -70,7 +70,8 @@ Yukarıdaki adımlar ile gerçekleştirilir.
 ```
 bootableusb [SEÇENEKLER]... AYGIT
 
-AYGIT: Genellikle /dev/sdb, /dev/sdc gibi /dev/sdX biçiminde usb belleği gösteren aygıt adı. bootableusb --listDevices komutuyla bağlı aygıtlar listelenip ilgili aygıt adı öğrenilir.
+AYGIT: Genellikle /dev/sdb, /dev/sdc gibi /dev/sdX biçiminde usb belleği gösteren aygıt adı. 
+bootableusb --listDevices komutuyla bağlı aygıtlar listelenip ilgili aygıt adı öğrenilir.
 
 --prepare: 
 	Usb belleği biçimlendirir ve grubu kurar.
@@ -107,4 +108,6 @@ AYGIT: Genellikle /dev/sdb, /dev/sdc gibi /dev/sdX biçiminde usb belleği göst
 ```
 
 ## Notlar
+Lisans: GPLv3
+
 https://github.com/slacka/WinUSB projesindeki bazı kodlar kullanılmıştır.
