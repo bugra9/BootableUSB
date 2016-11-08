@@ -1,0 +1,44 @@
+.TH BOOTABLEUSB "1" "November 2016" "bootableusb v0.3"
+.SH NAME
+bootableusb \- Create bootable USB drives
+.SH SYNOPSIS
+bootableusb [OPTIONS]... DEVICE
+.PP
+.SH DESCRIPTION
+.PP
+.PP
+DEVICE: The block device to be used.
+Use bootableusb \fB\-\-listDevices\fR
+.SS "--prepare:"
+.IP
+Format your usb drive and install grub
+Warning: All data on device will be destroyed.
+.SS "--format:"
+.IP
+Format your usb drive
+Warning: All data on device will be destroyed.
+.SS "--installGrub:"
+.IP
+Install grub
+.SS "--extract isoPath:"
+.IP
+Extract Windows ISO to usb drive
+.SS "--updateGrub:"
+.IP
+Update grub
+.SS "--repairGrub:"
+.IP
+Repair grub
+.SS "-v, --verbose:"
+.IP
+Explain what is being done
+.SS "-h, --help:"
+.IP
+Display this help and exit
+.SS "--version:"
+.IP
+Output version information and exit
+.SS "-l, --listDevices:"
+.IP
+Lists information about all storage devices
+.PP

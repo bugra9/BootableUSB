@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # =================================================================
-# BootableUSB v0.2
+# BootableUSB v0.3
 # 
 # @link https://github.com/bugra9/BootableUSB
 # @author bugra9 https://github.com/bugra9
@@ -15,90 +15,68 @@
 
 # Yardım sayfasını içerir.
 function displayHelp() {
-	echo "
-============================================
-bootableusb - Ön yüklemeli USB sürücü oluştur
-
-Sürükle bırak yöntemiyle kullanılabilir ön yüklemeli usb sürücü oluşturur. 
-Fat32 dosya sistemi türünü destekleyen her işletim sisteminde çalışır.
-============================================
-
-bootableusb [SEÇENEKLER]... AYGIT
-
-AYGIT: Genellikle /dev/sdb, /dev/sdc gibi /dev/sdX biçiminde usb belleği gösteren aygıt adı. bootableusb --listDevices komutuyla bağlı aygıtlar listelenip ilgili aygıt adı öğrenilir.
-
---prepare: 
-	Usb belleği biçimlendirir ve grubu kurar.
-	Dikkat: Aygıt içerisinde bulunan tüm veriler silinecektir.
-
---format: 
-	Usb belleği biçimlendirir.
-	Dikkat: Aygıt içerisinde bulunan tüm veriler silinecektir.
-
---installGrub: 
-	Eğer usb belleğin yapısı uygunsa grubu kurar.
-
---extract isoPath: 
-	Eğer bellekte grub bulunuyorsa belirtilen iso kalıbını belleğe açar.
-
---updateGrub: 
-	Bellekte bulunan grubu günceller.
-
---repairGrub: 
-	Disk üzerindeki silinen / bozulan grubu tamir eder.
-
-
--v, --verbose:
-	Her adımda ne yapıldığını açıklar.
-
--h, --help:
-	Yardım dosyasını görüntüler
-
---version:
-	Sürüm bilgisini gösterir.
-
---listDevices:
-	Bilgisayara bağlı olan aygıtları listeler.
-	"
+	if [[ "$(dirname $(readlink -f $0))" == "/usr/bin" ]]; then
+		temp=$(man bootableusb)
+	else
+		temp=$(man "../man/bootableusb.1.tr")
+	fi
+	echo "$temp"
 }
 
 # Yazılım sürümünü yazdırır.
 function displayVersion() {
-	echo "bootableusb v0.2"
+	printf "bootableusb v0.3"
 }
 
 # Bilgisayara bağlı aygıtları listeler.
 function displayDevices() {
-	echo "==========================================="
-	echo "Bilgisayara Bağlı Cihazlar"
-	echo ""
-	lsblk -d -p -o MODEL,SIZE,NAME | grep "/dev/sd"
-	echo "==========================================="
+	print "==========================================="
+	print "All Storage Devices"
+	allDevices=$(lsblk -d -p -o MODEL,SIZE,NAME | grep "/dev/sd")
+	print "${allDevices}"
+	print "==========================================="
 }
 
 # =================================================================
 # 					Yardımcı Fonksiyonlar
 # =================================================================
 
+
+function print_i18n() {
+	temp=$(gettext -e -s "$1")
+	printf "${temp}\n" "$2" $3 $4
+}
+function print() {
+	print_i18n "$1" "$2" "$3" "$4"
+}
+function printV() {
+	echo -en "\033[0;33m"
+	print_i18n "$1" "$2" "$3" "$4"
+	tput sgr0
+}
+function printE() {
+	echo -en "\033[0;31m"
+	print_i18n "$1" "$2" "$3" "$4"
+	tput sgr0
+}
+function printS() {
+	echo -en "\033[0;32m"
+	print_i18n "$1" "$2" "$3" "$4"
+	tput sgr0
+}
+
 # Fat32 türünde biçimlendirecek yazılım aranır. Yoksa hata iletisi gösterilip çıkış yapılır.
 function checkDependencies() {
-	if [ "$1" = 'mkdosfs' ]; then
+	if [[ "$1" == 'mkdosfs' ]]; then
 		mkdosfs=''
 		if which 'mkdosfs' > /dev/null; then
 			mkdosfs='mkdosfs'
 		elif which 'make.msdos' > /dev/null; then
 			mkdosfs='mkfs.msdos'
 		else
-			echo 'Hata: mkdosfs veya mkfs.msdos yazılımlarından biri bulunamadı!' >&2
+			printE "Error: mkdosfs or mkfs.msdos program not found!"
 			exit 1
 		fi
-	fi
-}
-
-# Yazılım -v veya --verbose parametreleri ile başlatıldıysa iletinin gösterilmesini yoksa gösterilmemesini sağlar.
-function echoV() {
-	if [ "$verbose" = '1' ]; then
-		echo $1
 	fi
 }
 
@@ -147,11 +125,11 @@ if loadfont \$font ; then
 fi
 terminal_output gfxterm
 
-menuentry \"Windows Kurulumu\" {
+menuentry \"$(gettext -s 'Install Windows')\" {
 	ntldr /bootmgr
 	boot
 }
-submenu \"Linux Kalıbından Başlat\" {
+submenu \"$(gettext -s 'Boot Linux ISO Image')\" {
 	menuentry \"GParted\" {
 		set isofile=\"/linux.iso\"
 		loopback loop \$isofile
@@ -170,7 +148,7 @@ submenu \"Linux Kalıbından Başlat\" {
 		linux (loop)/casper/vmlinuz.efi boot=casper iso-scan/filename=\$isofile quiet splash noprompt noeject
 		initrd (loop)/casper/initrd.lz
 	}
-	menuentry \"Ubuntu 64 Bit - Bellekten (RAM) Başlatma\" {
+	menuentry \"Ubuntu 64 Bit - $(gettext -s 'Run from RAM')\" {
 		set isofile=\"/linux.iso\"
 		loopback loop \$isofile
 		linux (loop)/casper/vmlinuz.efi boot=casper iso-scan/filename=\$isofile quiet splash noprompt noeject toram
@@ -224,14 +202,14 @@ submenu \"Linux Kalıbından Başlat\" {
 		linux (loop)/casper/vmlinuz boot=casper iso-scan/filename=\$isofile noeject noprompt 
 		initrd (loop)/casper/initrd.lz
 	}
-	menuentry \"OpenSUSE Canlı\" {
+	menuentry \"OpenSUSE $(gettext -s 'Live')\" {
 		set isofile=\"/linux.iso\"
 		loopback loop \$isofile
 		set imgdevpath=\"/dev/disk/by-uuid/$uuid\"
 		linux (loop)/boot/x86_64/loader/linux isofrom_device=\$imgdevpath isofrom_system=\$isofile LANG=en_US.UTF-8
 		initrd (loop)/boot/x86_64/loader/initrd
 	}
-	menuentry \"OpenSUSE Kurulum\" {
+	menuentry \"OpenSUSE $(gettext -s 'Setup')\" {
 		set isofile=\"/linux.iso\"
 		loopback loop \$isofile
 		linux (loop)/boot/x86_64/loader/linux install=hd:\$isofile
@@ -250,19 +228,49 @@ submenu \"Linux Kalıbından Başlat\" {
 
 # /dev/sdX biçiminde belirtilen aygıtı sisteme bağlar.
 function mountUSB() {
-	partition=`ls --color=no -1 "$device"* | grep -ve "$device"'$'`
-	
-	echoV "Bölüm bağlı ise bağı kaldırılıyor."
-	if [ "$(mount | grep -c "$partition")" != 0 ]; then
-		umount "$partition"
-	fi
-	sleep 1
+	# Cihaz üzerindeki tüm bölümleri okuyup dizi olarak tanımlıyoruz.
+	partition=($(ls --color=no -1 "${device}"*))
 
-	echoV "Bölüm belirlediğimiz yere bağlanıyor"
-	partitionPath="/media/bootableusb_$(date +%s)_$$"
+	# Dizinin uzunluğu 2 değilse sorun var demektir. (/dev/sdc /dev/sdc1)
+	if [[ ${#partition[@]} != 2 ]] ; then
+		printE "Error: this drive contains multiple partitions!"
+		exit 1
+	fi
+
+	# Dizideki son eleman bizim aradığımız bölüm
+	partition=${partition[-1]}
+
+	# Eğer bağlıysa bağlandığı noktayı öğreniyoruz.
+	# Bağlı değilse belirlediğimiz noktaya bağlıyoruz.
+	temp=($(mount | grep "$partition"))
+	if [[ "${temp}" == "" ]] ; then
+		partitionPath="/media/bootableusb_$(date +%s)_$$"
+		mkdir -p "$partitionPath"
+		mount "$partition" "$partitionPath"
+		# Yazılım aracılığıyla bağladığımız için işlemlerin 
+		# sonucunda bağı kaldırmamız gerekiyor.
+		mountCond="1"
+	else
+		partitionPath="${temp[2]}"
+		mountCond="0"
+	fi
+
+	# Grub yapılandırma dosyasının bulunduğu konumu değişkene atıyoruz.
 	cfgPath="$partitionPath/grub/grub.cfg" 
-	mkdir -p "$partitionPath"
-	mount "$partition" "$partitionPath"
+}
+
+function umountUSB() {
+	sync
+
+	if [[ "$mountCond" == "1" ]] ; then
+		umount "${partitionPath}" >& /dev/null
+		returnCodes=$?
+		if [[ $returnCodes != 0 ]] ; then
+			printE "Error: unable to securely unmount %s" "${partitionPath}"
+		else
+			rmdir "${partitionPath}"
+		fi
+	fi
 }
 
 # =================================================================
@@ -271,26 +279,34 @@ function mountUSB() {
 
 # Diski biçimlendirip grubu yükler.
 function prepare() {
-	echo "Usb bellek hazırlanıyor..."
 	format
+	sleep 5
+	print "Finalizing, please wait..."
 	installGrub
 }
 
 # Diski biçimlendirir.
-function format() {
-	echo "Usb bellek biçimlendiriliyor..."
-	if grep -qs "$device"1 /proc/mounts; then
-		echoV "$device 1. bölüm ayrılıyor"
-		umount "$device"1
+function format() {	
+	# Kullanıcıdan veri silinmesini kabul ettiğine dair onay alalım.
+	print "WARNING: ALL DATA ON DEVICE '%s' WILL BE DESTROYED. \nAre you sure you want to continue? (y/n)" "${device}"
+	read -n 1 -r
+	print ""
+	if [[ ! $REPLY =~ ^[YyEe]$ ]] ; then
+		exit 1
 	fi
-	if grep -qs "$device"2 /proc/mounts; then
-		echoV "$device 2. bölüm ayrılıyor"
-		umount "$device"2
-	fi
-	if grep -qs "$device"3 /proc/mounts; then
-		echoV "$device 3. bölüm ayrılıyor"
-		umount "$device"3
-	fi
+
+	# Biçimlendirilecek aygıt üzerinde 
+	# bağlı olan bölümlerin bağı kaldırılıyor.
+	mountedParts=($(mount | grep "${device}" | cut -d' ' -f1))
+	for part in "${mountedParts[@]}" ; do
+		umount "${part}" >& /dev/null
+		returnCodes=$?
+		if [[ $returnCodes != 0 ]] ; then
+			printE "Error: the device is in use by another process.\nPlease close any other process that may be accessing the device.\nError Code: %s" "${returnCodes}"
+			exit 1
+		fi
+	done
+
 	checkDependencies mkdosfs
 	parted -s "$device" mklabel msdos
 	parted -s "$device" mkpart primary fat32 4MiB -- -1s
@@ -298,43 +314,30 @@ function format() {
 	partprobe "$device"
 	sleep 3
 	partition=`ls --color=no -1 "$device"* | grep -ve "$device"'$'`
-	"$mkdosfs" -F 32 -n 'BootableUSB' "$partition"
-
-	echoV "Biçimlendirme işlemi tamamlandı."
-	sleep 5
+	"$mkdosfs" -F 32 -n 'BOOTABLEUSB' "$partition" >& /dev/null
 }
 
 # Grubu yükler.
 function installGrub() {
-	echo "Grub yükleniyor..."
-
 	mountUSB
 
-	echoV "Grub yükleniyor"
-	grub-install --target=i386-pc --boot-directory="$partitionPath" "$device" 
+	grub-install --target=i386-pc --boot-directory="$partitionPath" "$device" >& /dev/null
 
-	echoV "Grub ayarları oluşturuluyor."
-	mkdir -p "$(dirname "$cfgPath")"
-
+	mkdir -p "$(dirname "${cfgPath}")"
 	writeGrubCfg
 
-	umount $partitionPath
-	echoV "Grub yüklendi."
+	umountUSB
 }
 
 # Grub ayarlarını günceller.
 function updateGrub() {
-	echo "Grub ayarları güncelleniyor..."
-
 	mountUSB
 	writeGrubCfg
-	umount $partitionPath
+	umountUSB
 }
 
 # Kalıp dosyasını usb belleğin içine açar.
 function extract() {
-	echo "Kalıp çıkarılıyor..."
-
 	isoMountPath="/media/bootableusb_iso_$(date +%s)_$$"
 	mkdir -p "$isoMountPath"
 	if [ -f "$isoPath" ]; then
@@ -349,23 +352,27 @@ function extract() {
 	neededSpace=$(du -s "$isoMountPath" --bytes | awk '{print $1}')
 	((neededSpace = neededSpace + 1000 * 1000 * 10))
 
-	if [ "$neededSpace" -gt "$freeSpace" ]; then
-		echo "Hata: Bellek üzerinde yeteri kadar boş alan yok." >&2
+	if [[ "$neededSpace" -gt "$freeSpace" ]]; then
+		printE "Hata: Bellek üzerinde yeteri kadar boş alan yok."
+		umount $isoMountPath
 		exit 1
 	fi
 
-	echo "Dosyalar kopyalanıyor..."
+	print "Copying files..."
 	rsync -rlt --info=progress2 "$isoMountPath"/* "$partitionPath"/
+	sync
 
 	umount $isoMountPath
-	umount $partitionPath
+	umountUSB
 	
 }
 
 # Diskteki grubu onarır.
 function repairGrub() {
-	echo "Grub onarılıyor..."
 	grub-install $device
+	print "Finalizing, please wait..."
+	sleep 2
+	update-grub
 }
 
 # Verilen parametrelere göre çalışma hazırlığını yapar.
@@ -378,7 +385,7 @@ function main() {
 			'--version')
 				displayVersion
 				exit 0;;
-			'--listDevices')
+			'--listDevices'|'-l')
 				displayDevices
 				exit 0;;
 			'--verbose'|'-v')
@@ -410,25 +417,25 @@ function main() {
 				shift
 				device=$(readlink -f "$1");;
 			* )
-				echo "Hata: Bilinmeyen parametre \"$1\"!" >&2
+				printE "Error: unknown option - '%s'" "$1"
 				exit 1;;
 		esac
 
 		shift
 	done
 
-	# Aygıt belirtilmediyse yazılım sonlandırılır.
-	if [ -z "$device" ]; then
-		echo "Hata: İşlem yapılacak aygıt belirtilmemiş!" >&2
-		echo "" >&2
+	# Aygıt yoksa yazılım sonlandırılır.
+	if [[ "${device}" == "" ]]; then
 		displayHelp
+		exit 1
+	elif [[ $(lsblk -d -p -o MODEL,SIZE,NAME | grep "${device}") == "" ]]; then
+		print "Error: '%s' device not found." "${device}"
 		exit 1
 	fi
 
 	# Yönetici yetkileriyle çalışmıyorsa yazılım sonlandırılır.
-	if [ ! $(id -u) = 0 ]; then
-		echo "Hata: Bu yazılımın çalışması için yönetici yetkilerine ihtiyacı var." >&2
-		echo "" >&2
+	if [[ $(id -u) != 0 ]]; then
+		printE "Error: you should run this script as root!"
 		exit 1
 	fi
 
@@ -452,11 +459,13 @@ function main() {
 			repairGrub
 			;;
 		* )
-			echo "Hata: Herhangi bir işlem seçilmemiş!" >&2
+			print "Error: no install method specified!"
 			displayHelp
 			exit 1;;
 	esac
 }
+
+export TEXTDOMAIN=bootableusb
 
 isoPath=''
 method=''

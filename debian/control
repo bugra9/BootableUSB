@@ -1,0 +1,15 @@
+Source: bootableusb
+Section: main
+Priority: optional
+Maintainer: bugra9 <bugra9@gmail.com>
+Build-Depends: debhelper (>=9)
+Standards-Version: 3.9.8
+Homepage: https://github.com/bugra9/BootableUSB
+#Vcs-Git: git://github.com/bugra9/BootableUSB.git
+#Vcs-Browser: https://github.com/bugra9/BootableUSB.git
+
+Package: bootableusb
+Architecture: all
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Create bootable usb drives
+ BootableUSB allows you to create bootable USB drives for Windows and Linux distributions.

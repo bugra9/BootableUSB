@@ -9,6 +9,25 @@ Bu yazılım aşağıdaki işlevleri yerine getirmek için hazırlanmıştır.
 - Usb bellek üzerinde bulunan iso kalıbından Linux dağıtımlarının başlatılması
 - Diskte daha önce kurulmuş işletim sistemlerinin başlatılması
 
+## Yükleme
+**Ubuntu**
+```
+sudo add-apt-repository ppa:bugra9/ppa
+sudo apt update
+sudo apt install bootableusb
+```
+
+**Diğer dağıtımlar için**
+```
+make
+sudo make install
+```
+komutlarıyla yüklenir. Silmek isterseniz
+```
+sudo make uninstall
+```
+komutuyla silebilirsiniz.
+
 ## Çalışma Şekli
 Bu yazılım diğer yazılımlardan farklı olarak hem kurulum hem de veri depolanması şeklinde kullanım için hazırlanmıştır. Yazılım kullanılarak bir defalığına usb bellek hazırlanır.  
 **Dikkat:** Aygıt içerisinde bulunan tüm veriler silinecektir.
@@ -85,10 +104,10 @@ bootableusb --listDevices komutuyla bağlı aygıtlar listelenip ilgili aygıt a
 	Eğer usb belleğin yapısı uygunsa grubu kurar.
 
 --extract isoPath: 
-	Eğer bellekte grub bulunuyorsa belirtilen iso kalıbını belleğe açar.
+	Eğer usb bellekte grub bulunuyorsa belirtilen iso kalıbını belleğe açar.
 
 --updateGrub: 
-	Bellekte bulunan grubu günceller.
+	Usb bellekte bulunan grubun ayarlarını günceller.
 
 --repairGrub: 
 	Disk üzerindeki silinen / bozulan grubu tamir eder.
@@ -103,7 +122,7 @@ bootableusb --listDevices komutuyla bağlı aygıtlar listelenip ilgili aygıt a
 --version:
 	Sürüm bilgisini gösterir.
 
---listDevices:
+-l, --listDevices:
 	Bilgisayara bağlı olan aygıtları listeler.
 ```
 

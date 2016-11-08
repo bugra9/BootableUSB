@@ -1,0 +1,46 @@
+.TH BOOTABLEUSB "1" "November 2016" "bootableusb v0.3"
+.SH NAME
+bootableusb \- Ön yüklemeli USB sürücü oluştur
+.SH SYNOPSIS
+bootableusb [SEÇENEKLER]... AYGIT
+.PP
+.SH DESCRIPTION
+Sürükle bırak yöntemiyle kullanılabilir ön yüklemeli usb sürücü oluşturur.
+Fat32 dosya sistemi türünü destekleyen her işletim sisteminde çalışır.
+.PP
+.PP
+AYGIT: Genellikle \fI\,/dev/sdb\/\fP, \fI\,/dev/sdc\/\fP gibi \fI\,/dev/sdX\/\fP biçiminde usb belleği gösteren aygıt adı.
+bootableusb \fB\-\-listDevices\fR komutuyla bağlı aygıtlar listelenip ilgili aygıt adı öğrenilir.
+.SS "--prepare:"
+.IP
+Usb belleği biçimlendirir ve grubu kurar.
+Dikkat: Aygıt içerisinde bulunan tüm veriler silinecektir.
+.SS "--format:"
+.IP
+Usb belleği biçimlendirir.
+Dikkat: Aygıt içerisinde bulunan tüm veriler silinecektir.
+.SS "--installGrub:"
+.IP
+Eğer usb belleğin yapısı uygunsa grubu kurar.
+.SS "--extract isoPath:"
+.IP
+Eğer usb bellekte grub bulunuyorsa belirtilen iso kalıbını belleğe açar.
+.SS "--updateGrub:"
+.IP
+Usb bellekte bulunan grubun ayarlarını günceller.
+.SS "--repairGrub:"
+.IP
+Disk üzerindeki silinen / bozulan grubu tamir eder.
+.SS "-v, --verbose:"
+.IP
+Her adımda ne yapıldığını açıklar.
+.SS "-h, --help:"
+.IP
+Yardım dosyasını görüntüler
+.SS "--version:"
+.IP
+Sürüm bilgisini gösterir.
+.SS "-l, --listDevices:"
+.IP
+Bilgisayara bağlı olan aygıtları listeler.
+.PP

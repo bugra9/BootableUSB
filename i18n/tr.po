@@ -1,0 +1,50 @@
+msgid "All Storage Devices" 
+msgstr "Tüm Depolama Aygıtları" 
+
+msgid "Error: mkdosfs or mkfs.msdos program not found!" 
+msgstr "Hata: mkdosfs veya mkfs.msdos yazılımlarından biri bulunamadı!" 
+
+msgid "Install Windows" 
+msgstr "Windows Kurulumu" 
+
+msgid "Boot Linux ISO Image" 
+msgstr "Linux ISO Kalıbından Başlat" 
+
+msgid "Run from RAM" 
+msgstr "RAM'e kopyalayarak başlat" 
+
+msgid "Live" 
+msgstr "Canlı" 
+
+msgid "Setup" 
+msgstr "Kurulum" 
+
+msgid "Error: this drive contains multiple partitions!" 
+msgstr "Hata: Bu sürücü birden fazla disk bölüm içeriyor!" 
+
+msgid "Error: unable to securely unmount %s" 
+msgstr "Hata: %s güvenli biçimde ayırılamadı." 
+
+msgid "Finalizing, please wait..." 
+msgstr "Bitiriliyor, Lütfen Bekleyin..." 
+
+msgid "Error: the device is in use by another process. \nPlease close any other process that may be accessing the device. \nError Code: %s" 
+msgstr "Hata: aygıt başka bir işlem tarafından kullanılıyor. \nLütfen aygıta erişilebilmesi için diğer işlemi kapatın. \nHata Kodu: %s" 
+
+msgid "Copying files..." 
+msgstr "Dosyalar kopyalanıyor..." 
+
+msgid "Error: unknown option - '%s'" 
+msgstr "Hata: bilinmeyen seçenek - '%s'" 
+
+msgid "Error: '%s' device not found."
+msgstr "Hata: '%s' aygıtı bulunamadı."
+
+msgid "Error: you should run this script as root!" 
+msgstr "Hata: Bu yazılımın çalışması için yönetici yetkilerine ihtiyacı var." 
+
+msgid "Error: no install method specified!" 
+msgstr "Hata: herhangi bir işlem belirtilmemiş!" 
+
+msgid "WARNING: ALL DATA ON DEVICE '%s' WILL BE DESTROYED. \nAre you sure you want to continue? (y/n)"
+msgstr "UYARI: '%s' AYGITINDAKİ TÜM VERİ YOK EDİLECEK.\nİşleme devam etmek istediğine emin misin? (e/h)"
