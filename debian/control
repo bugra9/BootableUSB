@@ -1,5 +1,5 @@
 Source: bootableusb
-Section: main
+Section: utils
 Priority: optional
 Maintainer: bugra9 <bugra9@gmail.com>
 Build-Depends: debhelper (>=9)
