@@ -7,6 +7,7 @@ localedir = ${prefix}/share/locale
 
 INSTALL = /usr/bin/install -c
 UNINSTALL = rm -f
+MKDIR = mkdir -p
 
 PO_FILES = i18n/tr.po
 
@@ -16,7 +17,13 @@ i18n: $(PO_FILES:po=mo)
 %.mo: %.po
 	msgfmt $< -o $@
 
-install:
+makedir:
+	test -d "$(DESTDIR)${bindir}" || $(MKDIR) "$(DESTDIR)${bindir}"
+	test -d "$(DESTDIR)${mandir}/man1" || $(MKDIR) "$(DESTDIR)${mandir}/man1"
+	test -d "$(DESTDIR)${mandir}/tr/man1" || $(MKDIR) "$(DESTDIR)${mandir}/tr/man1"
+	test -d "$(DESTDIR)${localedir}/tr/LC_MESSAGES" || $(MKDIR) "$(DESTDIR)${localedir}/tr/LC_MESSAGES"
+
+install: makedir
 	$(INSTALL) -m 755 src/bootableusb \
 	                  "$(DESTDIR)$(bindir)/bootableusb"
 	$(INSTALL) -m 644 man/bootableusb.1.en \
