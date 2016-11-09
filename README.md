@@ -17,6 +17,11 @@ sudo apt update
 sudo apt install bootableusb
 ```
 
+**Arch Linux**
+```
+yaourt -S bootableusb
+```
+
 **Diğer dağıtımlar için**
 ```
 make
