@@ -1,0 +1,50 @@
+msgid "All Storage Devices" 
+msgstr "" 
+
+msgid "Error: mkdosfs or mkfs.msdos program not found!" 
+msgstr "" 
+
+msgid "Install Windows" 
+msgstr "" 
+
+msgid "Boot Linux ISO Image" 
+msgstr "" 
+
+msgid "Run from RAM" 
+msgstr "" 
+
+msgid "Live" 
+msgstr "" 
+
+msgid "Setup" 
+msgstr "" 
+
+msgid "Error: this drive contains multiple partitions!" 
+msgstr "" 
+
+msgid "Error: unable to securely unmount %s" 
+msgstr "" 
+
+msgid "Finalizing, please wait..." 
+msgstr "" 
+
+msgid "Error: the device is in use by another process. \nPlease close any other process that may be accessing the device. \nError Code: %s" 
+msgstr "" 
+
+msgid "Copying files..." 
+msgstr "" 
+
+msgid "Error: unknown option - '%s'" 
+msgstr "" 
+
+msgid "Error: '%s' device not found."
+msgstr ""
+
+msgid "Error: you should run this script as root!" 
+msgstr "" 
+
+msgid "Error: no install method specified!" 
+msgstr "" 
+
+msgid "WARNING: ALL DATA ON DEVICE '%s' WILL BE DESTROYED. \nAre you sure you want to continue? (y/n)"
+msgstr ""

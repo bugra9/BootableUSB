@@ -9,7 +9,7 @@ INSTALL = /usr/bin/install -c
 UNINSTALL = rm -f
 MKDIR = mkdir -p
 
-PO_FILES = i18n/tr.po
+PO_FILES = po/tr.po
 
 .PHONY: i18n
 i18n: $(PO_FILES:po=mo)
@@ -30,7 +30,7 @@ install: makedir
 	                  "$(DESTDIR)$(mandir)/man1/bootableusb.1"
 	$(INSTALL) -m 644 man/bootableusb.1.tr \
 	                  "$(DESTDIR)$(mandir)/tr/man1/bootableusb.1"
-	$(INSTALL) -m 644 i18n/tr.mo \
+	$(INSTALL) -m 644 po/tr.mo \
 	                  "$(DESTDIR)$(localedir)/tr/LC_MESSAGES/bootableusb.mo"
 
 uninstall:
@@ -42,4 +42,4 @@ uninstall:
 	-$(UNINSTALL) "$(DESTDIR)$(localedir)/tr/LC_MESSAGES/bootableusb.mo"
 
 clean:
-	-$(UNINSTALL) i18n/*.mo
+	-$(UNINSTALL) po/*.mo
