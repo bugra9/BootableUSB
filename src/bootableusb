@@ -290,7 +290,7 @@ function format() {
 	# Kullanıcıdan veri silinmesini kabul ettiğine dair onay alalım.
 	print "WARNING: ALL DATA ON DEVICE '%s' WILL BE DESTROYED. \nAre you sure you want to continue? (y/n)" "${device}"
 	read -n 1 -r
-	print ""
+	print " "
 	if [[ ! $REPLY =~ ^[YyEe]$ ]] ; then
 		exit 1
 	fi
