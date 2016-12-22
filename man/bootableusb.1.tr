@@ -1,46 +1,61 @@
-.TH BOOTABLEUSB "1" "November 2016" "bootableusb v0.3"
-.SH NAME
+.TH BOOTABLEUSB "1" "November 2016" "bootableusb v0.4"
+.SH İSİM
 bootableusb \- Ön yüklemeli USB sürücü oluştur
-.SH SYNOPSIS
+.SH KULLANIM 
 bootableusb [SEÇENEKLER]... AYGIT
 .PP
-.SH DESCRIPTION
-Sürükle bırak yöntemiyle kullanılabilir ön yüklemeli usb sürücü oluşturur.
-Fat32 dosya sistemi türünü destekleyen her işletim sisteminde çalışır.
+.SH AÇIKLAMA 
+Bir defalığına usb belleği ön yüklemeli hale getirirsiniz, daha sonra yazılıma ihtiyaç duymadan sürükle bırak ile windows ve linux dağıtımlarını usb bellek üzerinden başlatırsınız.
 .PP
 .PP
 AYGIT: Genellikle \fI\,/dev/sdb\/\fP, \fI\,/dev/sdc\/\fP gibi \fI\,/dev/sdX\/\fP biçiminde usb belleği gösteren aygıt adı.
+.br
 bootableusb \fB\-\-listDevices\fR komutuyla bağlı aygıtlar listelenip ilgili aygıt adı öğrenilir.
-.SS "--prepare:"
+.SS "-l, --listDevices:"
 .IP
-Usb belleği biçimlendirir ve grubu kurar.
+Bilgisayara bağlı olan aygıtları listeler.
+.SS "-i, --install:"
+.IP
+Usb belleği biçimlendirir, grubu kurar ve yapılandırmasını ayarlar. Kısaca kullanılmaya hazır duruma getirir.
+.br
 Dikkat: Aygıt içerisinde bulunan tüm veriler silinecektir.
+.SS "-u, --updateGrub:"
+.IP
+Usb bellekte bulunan grubun ayarlarını günceller. Bu güncellemeyle hatalar giderilebilir, daha çok dağıtım desteklenebilir.
+.SS "-r, --repairGrub:"
+.IP
+Disk üzerindeki silinen / bozulan grubu tamir eder.
+.SS "-e, --extract KALIPKONUMU:"
+.IP
+Windows kurulum dosyaları kalıp halinde ise bu komutla kolayca kalıbın içindekiler usb belleğin içine çıkarılır.
+.SS "-p, --persistent BOYUT:"
+.IP
+Canlı olarak kullanılan dağıtımlar üzerinde yaptığınız değişikliklerin kalıcı olması için bu değişikliklerin kaydedileceği boş bir kalıp dosyasını bootableusb/persistent dizininde oluşturur.
+.br
+BOYUT: bu kalıp dosyasının megabyte olarak boyutu. Örn: 1024, 2048, 500
+.SS "-pr, --resizePersistent BOYUT:"
+.IP
+Değişikliklerin kaydedildiği kalıp dosyasının boyutunu değiştirir.
+.br
+BOYUT: bu kalıp dosyasına megabyte olarak ne kadar ekleneceği. Örn: 1024, 2048, 500
 .SS "--format:"
 .IP
 Usb belleği biçimlendirir.
+.br
 Dikkat: Aygıt içerisinde bulunan tüm veriler silinecektir.
 .SS "--installGrub:"
 .IP
-Eğer usb belleğin yapısı uygunsa grubu kurar.
-.SS "--extract isoPath:"
-.IP
-Eğer usb bellekte grub bulunuyorsa belirtilen iso kalıbını belleğe açar.
-.SS "--updateGrub:"
-.IP
-Usb bellekte bulunan grubun ayarlarını günceller.
-.SS "--repairGrub:"
-.IP
-Disk üzerindeki silinen / bozulan grubu tamir eder.
-.SS "-v, --verbose:"
+Grubu kurar ve yapılandırmasını ayarlar. Biçimlendirme istenmeyen durumlarda kullanılır.
+.SS "--verbose:"
 .IP
 Her adımda ne yapıldığını açıklar.
 .SS "-h, --help:"
 .IP
 Yardım dosyasını görüntüler
-.SS "--version:"
+.SS "-v, --version:"
 .IP
 Sürüm bilgisini gösterir.
-.SS "-l, --listDevices:"
-.IP
-Bilgisayara bağlı olan aygıtları listeler.
 .PP
+
+.SH LİSANS
+Bu bir özgür yazılımdır; GNU Genel Kamu Lisansı sürüm 3 (GPLv3) <http://www.gnu.org/licenses/gpl.html> koşullarına bağlı kalarak  kopyalarını  yeniden  dağıtabilirsiniz. Yasaların izin verdiği ölçüde hiçbir garantisi yoktur; hatta SATILABİLİRLİĞİ veya ŞAHSİ KULLANIMINIZA UYGUNLUĞU için bile garanti verilmez.

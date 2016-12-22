@@ -1,13 +1,43 @@
 **UYARI:** Bu yazılım geliştirme aşamasındadır ve kullanım sonucu veri kaybına uğratabilir.
 
-# BootableUSB
+# BootableUSB v0.4
+Ön yüklemeli usb bellek oluşturmayı en kolay hale getiren yazılım. Bir kere yükle bir daha hep ön yüklemeli kalsın felsefesini benimser.
 
-Sürükle bırak yöntemiyle kullanılabilir ön yüklemeli usb sürücü oluşturur. Fat32 dosya sistemi türünü destekleyen her işletim sisteminde çalışır.
-
-Bu yazılım aşağıdaki işlevleri yerine getirmek için hazırlanmıştır.
-- Usb bellek üzerinden Windows işletim sisteminin yüklenebilmesi
-- Usb bellek üzerinde bulunan iso kalıbından Linux dağıtımlarının başlatılması
+Bu yazılımla oluşturulmuş usb bellek ile yapabilecekleriniz;
+- Windows işletim sisteminin yüklenmesi
+- Bir ya da birden fazla linux dağıtımından seçilenin başlatılması
 - Diskte daha önce kurulmuş işletim sistemlerinin başlatılması
+
+Bu işlemlerin ne kadar kolay yapılabileceğini öğrenmek istiyorsan gel beraber inceleyelim. Öncelikle bir defalığına usb belleği ön yüklemeli hale getirdiğini düşün. Bundan sonra neler yapabileceklerine bakalım.
+
+**Windows işletim sisteminin ayarlanması**  
+Usb belleğin içine kurulum dosyalarını at. Evet bu kadar, herhangi bir yazılım çalıştırman gerekmiyor.
+
+**Linux dağıtımının ayarlanması**  
+Kalıp dosyasını bootableusb/linux dizini içine at. Cidden bu kadar :)
+
+**Birden fazla linux dağıtımının ayarlanması (MultiBoot)**  
+İstediğin dağıtımlara ait kalıp dosyalarını bootableusb/linux dizini içine at. Bu iş garipleşmeye başladı değil mi?
+
+**Canlı olarak kullandığın dağıtımdaki değişikliklerin kaybolmamasını mı istiyorsun?**  
+bootableusb/persistent içerisinde bulunan 1024.tar.gz gibi çeşitli boyut isimlendirmesine sahip dosyalardan istediğini oraya çıkart. Tahmin edebileceğin gibi hepsi bu. Eğer yer sıkıntısı çekersen, kullanmayacağın zamanlarda tekrar sıkıştırırsın.
+
+**Bozulmuş gruba rağmen diskteki işletim sistemini başlatma**  
+Bilgisayarındaki dağıtım açılmıyor mu, hemen usb bellek üzerindeki grubu kullanarak erişemediğin yüklü dağıtımı başlat.
+
+## Çalışma Mantığı
+Farkettin mi bilmiyorum ama bu işlemlerin hiçbirisi için bu yazılımı kullanman gerekmiyor. Tüm işleri sürükle bırak ile yapıyorsun. Gerçekten kolay değil mi?
+
+Gerçekten böyle bir şey olabilir mi diye merak etmeye mi başladın? Çalışma mantığını mı öğrenmek istiyorsun gel beraber inceleyelim. İlk önce şu meşhur yüklememizi yapalım.
+```
+bootableusb --install /dev/sdX
+```
+Evet bu komut ne yapıyorda bundan sonra her şey kendiliğinden oluyor. Hemen ne yaptığına bakalım.
+- Usb belleği biçimlendirir.
+- İçine grubu kurar.
+- Grub yapılandırmasını oluşturur. (Sihirli sözcükleri mi söyledim ne)
+
+Evet çok basit görünse de tüm marifet grub yapılandırmasında bitiyor. Grubu öyle bir ayarlıyorsun ki artık grub tüm işlemleri kendisi yönetiyor. Grubun yeteneklerinin farkında olmayanlar için bu yazılımla yapabileceklerini göstermek istedim. Madem her şeyi anladık bir de bu yazılımı bilgisayarımıza nasıl yükleyeceğimize bakalım.
 
 ## Yükleme
 **Ubuntu**
@@ -33,105 +63,95 @@ sudo make uninstall
 ```
 komutuyla silebilirsiniz.
 
-## Çalışma Şekli
-Bu yazılım diğer yazılımlardan farklı olarak hem kurulum hem de veri depolanması şeklinde kullanım için hazırlanmıştır. Yazılım kullanılarak bir defalığına usb bellek hazırlanır.  
-**Dikkat:** Aygıt içerisinde bulunan tüm veriler silinecektir.
+**Yüklemeden Çalıştırma**  
+Yazılımı isterseniz yüklemeden kullanabilirsiniz. Bu durumda dil İngilizce olacaktır. 
 ```
-sudo bootableusb --prepare /dev/sdX
+./bootableusb
 ```
-Bu hazırlama aşamasında yazılım usb belleği fat32 türünde biçimlendirir ve üzerine grubu kurarak ayarlarını yapar.
-
-Bu aşamadan sonra usb bellek istenildiği gibi kullanılabilir. 
-Eğer windows kurulmak istenirse kalıp dosyaları usb üzerine çıkarılır ve bilgisayar usb bellekten başlatılır. Grub ekranından Windows kurulumu seçilerek devam edilir. Yükleme bittiğinde ise usb bellek üzerindeki Windows dosyaları silinerek normal kullanıma devam edilir. Dikkat edilecek nokta, usb bellek içindeki grub klasörü silinmemelidir.
-
-Linux dağıtımı kurmak ya da canlı olarak başlatmak için linux kalıbı direk linux.iso ismiyle usb belleğin içine kopyalanır. Bilgisayar usb bellekten başlatılarak grub ekranından Linux kalıbından başlatma seçilerek devam edilir. Kullanım bitince bellek üzerindeki bu iso dosyası silinip kullanıma devam edilir.
-
-Eğer disk üzerindeki grub silinir ya da bozulursa, disk üzerindeki işletim sistemleri usb bellek üzerinden başlatılabilir. Bunun için bilgisayarı usb bellekten başlattıktan sonra grub ekranından diskte bulunan bir işletim sistemi seçilerek devam edilir.
-
-## Kullanım Senaryoları
-
-### Ubuntu yanına Windows kurma
-
-İlk önce usb belleğimizin /dev/sdX biçiminde olan ismini öğrenmek için bilgisayara bağlı olan aygıtlar listelenir.
-```
-bootableusb --listDevices
-```
-
-Eğer daha önce yazılım hiç çalıştırılmadıysa ya da usb belleğin yapısı bozulduysa önce hazırlık yapılır.  
-**Dikkat:** Aygıt içerisinde bulunan tüm veriler silinecektir.
-```
-sudo bootableusb --prepare /dev/sdX
-```
-
-Daha sonra Windows dosyaları usb belleğe kopyalanır. Eğer bu kopyalama işlemi elle yapılmak istenmiyorsa yazılım aracılığı ile yapılabilir.
-```
-sudo bootableusb --extract ~/windowsIsoPath.iso /dev/sdX
-```
-
-Artık her şey hazır. Bilgisayar usb bellekten başlatılarak grub ekranında Windows kurulumu seçilir ve Windows kurulur.
-
-Windows kurulumu tamamlandıktan sonra grub yerine Windows'un kendi başlatıcısı yüklenecektir. Diskteki linux dağıtımlarına ulaşabilmek için grub yeniden kurulmalıdır. Bunun için bilgisayar usb bellekten başlatılarak grub ekranından diskte yüklü olan bir linux dağıtımı seçilerek açılır. Sürekli usb bellekten başlatmamak için bu diske grub tekrardan kurulur.
-```
-sudo bootableusb --repairGrub /dev/sdY
-```
-
-### Ubuntu yanına başka bir linux dağıtımı kurma
-
-Eğer daha önce yazılım hiç çalıştırılmadıysa ya da usb belleğin yapısı bozulduysa önce hazırlık yapılır.  
-**Dikkat:** Aygıt içerisinde bulunan tüm veriler silinecektir.
-```
-sudo bootableusb --prepare /dev/sdX
-```
-
-Daha sonra kurulacak dağıtımın kalıp dosyası usb belleğe linux.iso ismiyle kopyalanır ve bilgisayar usb bellekten başlatılır. Grub ekranından Linux kalıbından başlatma seçilerek devam edilir.
-
-### Ubuntu'nun bozulması sonucu kurtarma işlemi için başka bir linux dağıtımını kullanma
-Yukarıdaki adımlar ile gerçekleştirilir.
-
 
 ## Seçenekler
 
 ```
 bootableusb [SEÇENEKLER]... AYGIT
 
+Bir  defalığına usb belleği ön yüklemeli hale getirirsiniz, 
+daha sonra yazılıma ihtiyaç duymadan sürükle bırak ile 
+windows ve linux dağıtımlarını usb bellek üzerinden başlatırsınız.
+
 AYGIT: Genellikle /dev/sdb, /dev/sdc gibi /dev/sdX biçiminde usb belleği gösteren aygıt adı. 
 bootableusb --listDevices komutuyla bağlı aygıtlar listelenip ilgili aygıt adı öğrenilir.
 
---prepare: 
-	Usb belleği biçimlendirir ve grubu kurar.
+-l, --listDevices:
+	Bilgisayara bağlı olan aygıtları listeler.
+
+-i, --install: 
+	Usb belleği biçimlendirir, grubu kurar ve yapılandırmasını ayarlar. 
+	Kısaca kullanılmaya hazır duruma getirir.
 	Dikkat: Aygıt içerisinde bulunan tüm veriler silinecektir.
+
+-u, --updateGrub: 
+	Usb bellekte bulunan grubun ayarlarını günceller. 
+	Bu güncellemeyle hatalar giderilebilir, daha çok dağıtım desteklenebilir.
+
+-r, --repairGrub: 
+	Disk üzerindeki silinen / bozulan grubu tamir eder.
+
+-e, --extract KALIPKONUMU: 
+	Windows kurulum dosyaları kalıp halinde ise bu komutla kolayca 
+	kalıbın içindekiler usb belleğin içine çıkarılır.
+
+-p, --persistent BOYUT:
+	Canlı olarak kullanılan dağıtımlar üzerinde yaptığınız değişikliklerin 
+	kalıcı olması için bu değişikliklerin kaydedileceği boş bir kalıp dosyasını 
+	bootableusb/persistent dizininde oluşturur.
+	BOYUT: bu kalıp dosyasının megabyte olarak boyutu. Örn: 1024, 2048, 500
+
+-pr, --resizePersistent BOYUT:
+	Değişikliklerin kaydedildiği kalıp dosyasının boyutunu değiştirir.
+	BOYUT: bu kalıp dosyasına megabyte olarak ne kadar ekleneceği. Örn: 1024, 2048, 500
 
 --format: 
 	Usb belleği biçimlendirir.
 	Dikkat: Aygıt içerisinde bulunan tüm veriler silinecektir.
 
 --installGrub: 
-	Eğer usb belleğin yapısı uygunsa grubu kurar.
-
---extract isoPath: 
-	Eğer usb bellekte grub bulunuyorsa belirtilen iso kalıbını belleğe açar.
-
---updateGrub: 
-	Usb bellekte bulunan grubun ayarlarını günceller.
-
---repairGrub: 
-	Disk üzerindeki silinen / bozulan grubu tamir eder.
+	Grubu kurar ve yapılandırmasını ayarlar. Biçimlendirme istenmeyen durumlarda kullanılır.
 
 
--v, --verbose:
+--verbose:
 	Her adımda ne yapıldığını açıklar.
 
 -h, --help:
 	Yardım dosyasını görüntüler
 
---version:
+-v, --version:
 	Sürüm bilgisini gösterir.
-
--l, --listDevices:
-	Bilgisayara bağlı olan aygıtları listeler.
 ```
 
-## Notlar
-Lisans: GPLv3
+## Katkıda Bulunma
+Bu yazılım açık kaynaklı ve özgürdür. Eğer katkıda bulunmak istiyor ama ne yapacağınızı bilmiyorsanız aşağıdaki maddeler ile fikir edinebilirsiniz.
 
-https://github.com/slacka/WinUSB projesindeki bazı kodlar kullanılmıştır.
+- Denediğiniz linux dağıtımı çalışmıyorsa hata kaydı açarak bildirebilirsiniz.
+- Yazılımın bir yerinde sorun gördüyseniz hata kaydı açarak bildirebilirsiniz.
+- Çeviri hatalarını düzeltip yeni çevirilerde bulunabilirsiniz.
+- Dökümantasyonları genişletebilir, çevirilerde bulunabilirsiniz.
+- Faydalı olabilecek özellikleri bildirebilirsiniz.
+
+Bildirim yapmak için: <https://github.com/bugra9/BootableUSB/issues/new>  
+Çeviri Bağlantısı: <https://translations.launchpad.net/bootableusb>  
+Çeviri dosyaları: <https://github.com/bugra9/BootableUSB/tree/master/po>  
+Man Sayfaları: <https://github.com/bugra9/BootableUSB/tree/master/man>  
+Beni Oku Sayfası: <https://github.com/bugra9/BootableUSB/blob/master/README.md>  
+Kaynak Kodlar: <https://github.com/bugra9/BootableUSB/blob/master/src/bootableusb>  
+
+## Notlar
+**Lisans**  
+GPLv3 <https://github.com/bugra9/BootableUSB/blob/master/LICENSE>
+Bu programın KESİNLİKLE HİÇBİR TEMİNATI YOKTUR
+
+**Yararlanılan Kaynaklar**  
+<https://www.gnu.org/software/grub/manual/grub.html>  
+<https://github.com/slacka/WinUSB>  
+<https://wiki.archlinux.org/index.php/Multiboot_USB_drive>  
+<https://help.ubuntu.com/community/Grub2/ISOBoot>  
+<https://help.ubuntu.com/community/Grub2/ISOBoot/Examples>  

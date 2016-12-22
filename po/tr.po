@@ -61,3 +61,9 @@ msgstr "Hata: herhangi bir işlem belirtilmemiş!"
 
 msgid "WARNING: ALL DATA ON DEVICE '%s' WILL BE DESTROYED. \nAre you sure you want to continue? (y/n)"
 msgstr "UYARI: '%s' AYGITINDAKİ TÜM VERİ YOK EDİLECEK.\nİşleme devam etmek istediğine emin misin? (e/h)"
+
+msgid "Operating Systems on Disk"
+msgstr "Disk Üzerindeki İşletim Sistemleri"
+
+msgid "Reboot"
+msgstr "Yeniden Başlat"

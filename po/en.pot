@@ -66,3 +66,9 @@ msgstr ""
 
 msgid "WARNING: ALL DATA ON DEVICE '%s' WILL BE DESTROYED. \nAre you sure you want to continue? (y/n)"
 msgstr ""
+
+msgid "Operating Systems on Disk"
+msgstr ""
+
+msgid "Reboot"
+msgstr ""

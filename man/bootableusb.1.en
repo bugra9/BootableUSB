@@ -1,44 +1,68 @@
-.TH BOOTABLEUSB "1" "November 2016" "bootableusb v0.3"
+.TH BOOTABLEUSB "1" "November 2016" "bootableusb v0.4"
 .SH NAME
 bootableusb \- Create bootable USB drives
 .SH SYNOPSIS
 bootableusb [OPTIONS]... DEVICE
 .PP
 .SH DESCRIPTION
+Once prepare your usb drives.
+bootableusb --install /dev/sdX
+Copy linux .iso images to bootableusb/linux directory on usb drive
+Copy windows files to usb drive
+You will be able to boot into either Windows or linux distros.
 .PP
 .PP
 DEVICE: The block device to be used.
+.br
 Use bootableusb \fB\-\-listDevices\fR
-.SS "--prepare:"
+.SS "-l, --listDevices:"
 .IP
-Format your usb drive and install grub
+Lists information about all storage devices
+.SS "-i, --install:"
+.IP
+Format your usb drive and install grub.
+.br
 Warning: All data on device will be destroyed.
+.SS "-u, --updateGrub:"
+.IP
+Update grub on usb drives
+.SS "-r, --repairGrub:"
+.IP
+Repair grub on disk.
+.SS "-e, --extract ISOPATH:"
+.IP
+Extract Windows ISO to usb drive
+.SS "-p, --persistent SIZE:"
+.IP
+By allocating extra space on your USB stick for a persistent overlay, you will be able to store data and make permanent modifications to your live operating system.  Without it, you will not be able to save data that will persist after a reboot. (bootableusb/persistent/SIZE.tar.gz)
+.br
+SIZE: persistent image size (MB). e.g: 1024, 2048, 500
+.SS "-pr, --resizePersistent SIZE:"
+.IP
+Resize persistent image (bootableusb/persistent/casper-rw)
+.br
+SIZE: want to extend size (MB). Örn: 1024, 2048, 500
 .SS "--format:"
 .IP
 Format your usb drive
+.br
 Warning: All data on device will be destroyed.
 .SS "--installGrub:"
 .IP
-Install grub
-.SS "--extract isoPath:"
-.IP
-Extract Windows ISO to usb drive
-.SS "--updateGrub:"
-.IP
-Update grub
-.SS "--repairGrub:"
-.IP
-Repair grub
-.SS "-v, --verbose:"
+Install grub without format usb drive.
+.SS "--verbose:"
 .IP
 Explain what is being done
 .SS "-h, --help:"
 .IP
 Display this help and exit
-.SS "--version:"
+.SS "-v, --version:"
 .IP
 Output version information and exit
-.SS "-l, --listDevices:"
-.IP
-Lists information about all storage devices
 .PP
+
+.SH LICENSE
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
+.br
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.

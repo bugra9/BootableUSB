@@ -1,7 +1,7 @@
 # Maintainer: bugra9 <bugra9@gmail.com>
 
 pkgname=bootableusb
-pkgver=0.3
+pkgver=0.4
 pkgrel=1
 pkgdesc="Create bootable usb drives"
 arch=('i686' 'x86_64')

@@ -1,46 +1,282 @@
 #!/bin/bash
 
 # =================================================================
-# BootableUSB v0.3
+# BootableUSB v0.4
 # 
 # @link https://github.com/bugra9/BootableUSB
 # @author bugra9 https://github.com/bugra9
 # @contributors https://github.com/bugra9/BootableUSB/graphs/contributors
-# @license GPLv3
+# @license GPLv3 https://github.com/bugra9/BootableUSB/blob/master/LICENSE
+# 
+# [TR] Bu programın KESİNLİKLE HİÇBİR TEMİNATI YOKTUR
+# [EN] This program comes with ABSOLUTELY NO WARRANTY
 # =================================================================
 
 # =================================================================
-# 					Bilgi Veren Sayfalar
+# 					İçindekiler
+# 					
+# 	1. Ana Fonksiyonlar ........................ 43
+# 	1.1. prepare ............................... 48
+# 	1.2. format ................................ 56
+# 	1.3. installGrub ........................... 88
+# 	1.4. updateGrub ............................ 103
+# 	1.5. persistent ............................ 109
+# 	1.6. resizePersistent ...................... 122
+# 	1.7. extract ............................... 133
+# 	1.8. repairGrub ............................ 162
+# 	1.9. main .................................. 170
+# 	
+# 	2. Yardımcı Fonksiyonlar ................... 277
+# 	2.1. print ................................. 285
+# 	2.2. checkDependencies ..................... 305
+# 	2.3. writeGrubCfg .......................... 319
+# 	2.4. mountUSB .............................. 447
+# 	2.5. umountUSB ............................. 479
+# 	
+# 	3. Bilgi Fonksiyonları ..................... 493
+# 	3.1. displayHelp ........................... 498
+# 	3.2. displayVersion ........................ 508
+# 	3.3. displayDevices ........................ 513
+# 	
 # =================================================================
 
-# Yardım sayfasını içerir.
-function displayHelp() {
-	if [[ "$(dirname $(readlink -f $0))" == "/usr/bin" ]]; then
-		temp=$(man bootableusb)
-	else
-		temp=$(man "../man/bootableusb.1.tr")
+# =================================================================
+# 					Ana Fonksiyonlar
+# =================================================================
+
+# (install) Diski biçimlendirip grubu yükler.
+function prepare() {
+	format
+	sleep 5
+	print "Finalizing, please wait..."
+	installGrub
+}
+
+# Diski biçimlendirir.
+function format() {	
+	# Kullanıcıdan veri silinmesini kabul ettiğine dair onay alalım.
+	print "WARNING: ALL DATA ON DEVICE '%s' WILL BE DESTROYED. \nAre you sure you want to continue? (y/n)" "${device}"
+	read -n 1 -r
+	print " "
+	ch=$(gettext -s -e "WARNING: ALL DATA ON DEVICE '%s' WILL BE DESTROYED. \nAre you sure you want to continue? (y/n)" | grep "\(\K([^/]+)" -oP)
+	if [[ ! $REPLY == "$ch" ]] ; then
+		exit 1
 	fi
-	echo "$temp"
+	# Biçimlendirilecek aygıt üzerinde 
+	# bağlı olan bölümlerin bağı kaldırılıyor.
+	mountedParts=($(mount | grep "${device}" | cut -d' ' -f1))
+	for part in "${mountedParts[@]}" ; do
+		umount "${part}" >& /dev/null
+		returnCodes=$?
+		if [[ $returnCodes != 0 ]] ; then
+			printE "Error: the device is in use by another process. \nPlease close any other process that may be accessing the device. \nError Code: %s" "${returnCodes}"
+			exit 1
+		fi
+	done
+
+	checkDependencies mkdosfs
+	parted -s "$device" mklabel msdos
+	parted -s "$device" mkpart primary fat32 4MiB -- -1s
+	blockdev --rereadpt "$device" || true
+	partprobe "$device"
+	sleep 3
+	partition=`ls --color=no -1 "$device"* | grep -ve "$device"'$'`
+	"$mkdosfs" -F 32 -n 'BOOTABLEUSB' "$partition" >& /dev/null
 }
 
-# Yazılım sürümünü yazdırır.
-function displayVersion() {
-	printf "bootableusb v0.3"
+# Grubu yükler.
+function installGrub() {
+	mountUSB
+
+	grub-install --target=i386-pc --boot-directory="$partitionPath/bootableusb" "$device" >& /dev/null
+
+	mkdir -p "$partitionPath/bootableusb/linux"
+	mkdir -p "$partitionPath/bootableusb/persistent"
+
+	mkdir -p "$(dirname "${cfgPath}")"
+	writeGrubCfg
+
+	umountUSB
 }
 
-# Bilgisayara bağlı aygıtları listeler.
-function displayDevices() {
-	print "==========================================="
-	print "All Storage Devices"
-	allDevices=$(lsblk -d -p -o MODEL,SIZE,NAME | grep "/dev/sd")
-	print "${allDevices}"
-	print "==========================================="
+# Grub ayarlarını günceller.
+function updateGrub() {
+	mountUSB
+	writeGrubCfg
+	umountUSB
+}
+
+function persistent() {
+	tmpdir=$(mktemp -d)
+	echo $1
+	dd if=/dev/zero of=$tmpdir/casper-rw bs=1M count=$1
+	sync
+	mkfs.ext4 -F $tmpdir/casper-rw
+	mountUSB
+	tar -czf "$partitionPath/bootableusb/persistent/$1.tar.gz" -C $tmpdir casper-rw
+	sync
+	rm -r "$tmpdir"
+	umountUSB
+}
+
+function resizePersistent() {
+	mountUSB
+	e2fsck -fy "$partitionPath/bootableusb/persistent/casper-rw"
+	dd if=/dev/zero bs=1M count=$1 >> "$partitionPath/bootableusb/persistent/casper-rw"
+	sync
+	e2fsck -fy "$partitionPath/bootableusb/persistent/casper-rw"
+	resize2fs "$partitionPath/bootableusb/persistent/casper-rw"
+	umountUSB
+}
+
+# Kalıp dosyasını usb belleğin içine açar.
+function extract() {
+	isoMountPath="/media/bootableusb_iso_$(date +%s)_$$"
+	mkdir -p "$isoMountPath"
+	if [ -f "$isoPath" ]; then
+		mount -o loop,ro -t udf,iso9660 "$isoPath" "$isoMountPath"
+	else
+		mount -o ro "$isoPath" "$isoMountPath"
+	fi
+
+	mountUSB
+
+	freeSpace=$(df --block-size 1 "$partitionPath" | grep "$partition" | awk '{print $4}')
+	neededSpace=$(du -s "$isoMountPath" --bytes | awk '{print $1}')
+	((neededSpace = neededSpace + 1000 * 1000 * 10))
+
+	if [[ "$neededSpace" -gt "$freeSpace" ]]; then
+		printE "Hata: Bellek üzerinde yeteri kadar boş alan yok."
+		umount $isoMountPath
+		exit 1
+	fi
+
+	print "Copying files..."
+	rsync -rlt --info=progress2 "$isoMountPath"/* "$partitionPath"/
+	sync
+	umount $isoMountPath
+	umountUSB
+}
+
+# Diskteki grubu onarır.
+function repairGrub() {
+	grub-install $device
+	print "Finalizing, please wait..."
+	sleep 2
+	update-grub
+}
+
+# Verilen parametrelere göre çalışma hazırlığını yapar.
+function main() {
+	while [ ! "$#" -eq 0 ]; do
+		case "$1" in
+			'--help'|'-h')
+				displayHelp
+				exit 0;;
+			'--version'|'-v')
+				displayVersion
+				exit 0;;
+			'--listDevices'|'-l')
+				displayDevices
+				exit 0;;
+			'--verbose')
+				verbose='1';;
+			'--install'|'-i')
+				method='prepare'
+				shift
+				device=$(readlink -f "$1");;
+			'--format')
+				method='format'
+				shift
+				device=$(readlink -f "$1");;
+			'--installGrub')
+				method='installGrub'
+				shift
+				device=$(readlink -f "$1");;
+			'--persistent'|'-p')
+				method='persistent'
+				shift
+				size=$1
+				shift
+				device=$(readlink -f "$1");;
+			'--resizePersistent'|'-pr')
+				method='resizePersistent'
+				shift
+				size=$1
+				shift
+				device=$(readlink -f "$1");;
+			'--extract'|'-e')
+				method='extract'
+				shift
+				isoPath=$(readlink -f "$1")
+				shift
+				device=$(readlink -f "$1");;
+			'--updateGrub'|'-u')
+				method='updateGrub'
+				shift
+				device=$(readlink -f "$1");;
+			'--repairGrub'|'-r')
+				method='repairGrub'
+				shift
+				device=$(readlink -f "$1");;
+			* )
+				printE "Error: unknown option - '%s'" "$1"
+				exit 1;;
+		esac
+
+		shift
+	done
+
+	# Aygıt yoksa yazılım sonlandırılır.
+	if [[ "${device}" == "" ]]; then
+		displayHelp
+		exit 1
+	elif [[ $(lsblk -d -p -o MODEL,SIZE,NAME | grep "${device}") == "" ]]; then
+		print "Error: '%s' device not found." "${device}"
+		exit 1
+	fi
+
+	# Yönetici yetkileriyle çalışmıyorsa yazılım sonlandırılır.
+	if [[ $(id -u) != 0 ]]; then
+		printE "Error: you should run this script as root!"
+		exit 1
+	fi
+
+	case "$method" in
+		'prepare')
+			prepare
+			;;
+		'format')
+			format
+			;;
+		'installGrub')
+			installGrub
+			;;
+		'persistent')
+			persistent $size
+			;;
+		'resizePersistent')
+			resizePersistent $size
+			;;
+		'extract')
+			extract
+			;;
+		'updateGrub')
+			updateGrub
+			;;
+		'repairGrub')
+			repairGrub
+			;;
+		* )
+			print "Error: no install method specified!"
+			displayHelp
+			exit 1;;
+	esac
 }
 
 # =================================================================
 # 					Yardımcı Fonksiyonlar
 # =================================================================
-
 
 function print_i18n() {
 	temp=$(gettext -e -s "$1")
@@ -80,21 +316,13 @@ function checkDependencies() {
 	fi
 }
 
-# Grub ayarlarını içerir ve bu ayarları /grub/grub.cfg dosyasına yazar.
 function writeGrubCfg() {
 	uuid=$(blkid -o value -s UUID "$partition")
+	param=""
 	echo "
 insmod fat
 search --no-floppy --fs-uuid $uuid --set root
 
-if [ -s /grub/grubenv ]; then
-  set have_grubenv=true
-  load_env
-fi
-function recordfail {
-  set recordfail=1
-  if [ -n \"\${have_grubenv}\" ]; then if [ -z \"\${boot_once}\" ]; then save_env recordfail; fi; fi
-}
 function load_video {
   if [ x\$feature_all_video_module = xy ]; then
     insmod all_video
@@ -112,118 +340,107 @@ function load_video {
 if [ x\$feature_default_font_path = xy ] ; then
    font=unicode
 else
-   font=\"/grub/fonts/unicode.pf2\"
+   font=\"/bootableusb/grub/fonts/unicode.pf2\"
 fi
 
 if loadfont \$font ; then
   set gfxmode=auto
   load_video
   insmod gfxterm
-  set locale_dir=/grub/locale
-  set lang=tr_TR
-  insmod gettext
 fi
 terminal_output gfxterm
 
-menuentry \"$(gettext -s 'Install Windows')\" {
-	ntldr /bootmgr
-	boot
-}
+if [ -s /bootmgr ]; then
+	menuentry \"$(gettext -s 'Install Windows')\" {
+		ntldr /bootmgr
+		boot
+	}
+fi
 submenu \"$(gettext -s 'Boot Linux ISO Image')\" {
-	menuentry \"GParted\" {
-		set isofile=\"/linux.iso\"
-		loopback loop \$isofile
-		linux (loop)/live/vmlinuz boot=live union=overlay username=user config components quiet noswap noeject toram=filesystem.squashfs ip=  nosplash findiso=\$isofile
-		initrd (loop)/live/initrd.img
-	}
-	menuentry \"SystemRescueCD\" {
-		set isofile=\"/linux.iso\"
-		loopback loop \$isofile
-		linux (loop)/isolinux/rescue64 isoloop=\$isofile
-		initrd (loop)/isolinux/initram.igz
-	}
-	menuentry \"Ubuntu 64 Bit\" {
-		set isofile=\"/linux.iso\"
-		loopback loop \$isofile
-		linux (loop)/casper/vmlinuz.efi boot=casper iso-scan/filename=\$isofile quiet splash noprompt noeject
-		initrd (loop)/casper/initrd.lz
-	}
-	menuentry \"Ubuntu 64 Bit - $(gettext -s 'Run from RAM')\" {
-		set isofile=\"/linux.iso\"
-		loopback loop \$isofile
-		linux (loop)/casper/vmlinuz.efi boot=casper iso-scan/filename=\$isofile quiet splash noprompt noeject toram
-		initrd (loop)/casper/initrd.lz
-	}
-	menuentry \"Ubuntu 32 Bit\" {
-		set isofile=\"/linux.iso\"
-		loopback loop \$isofile
-		linux (loop)/casper/vmlinuz boot=casper iso-scan/filename=\$isofile quiet splash noprompt noeject
-		initrd (loop)/casper/initrd.lz
-	}
-	menuentry \"Arch Linux\" {
-		set isofile=\"/linux.iso\"
-		loopback loop \$isofile
-		linux (loop)/arch/boot/x86_64/vmlinuz archisodevice=/dev/loop0 img_dev=\$imgdevpath img_loop=\$isofile earlymodules=loop
-		initrd (loop)/arch/boot/x86_64/archiso.img
-	}
-	menuentry \"Debian\" {
-		set isofile=\"/linux.iso\"
-		loopback loop \$isofile
-		linux (loop)/live/vmlinuz boot=live config fromiso=/dev/sdb2/\$isofile
-		initrd (loop)/live/initrd.img
-	}
-	menuentry \"Elementary OS\" {
-		set isofile=\"/linux.iso\"
-		loopback loop \$isofile
-		linux (loop)/casper/vmlinuz boot=casper iso-scan/filename=\$isofile
-		initrd (loop)/casper/initrd.lz
-	}
-	menuentry \"Fedora\" {
-		set isofile=\"/linux.iso\"
-		loopback loop \$isofile
-		linux (loop)/isolinux/vmlinuz root=live:CDLABEL=Fedora-WS-Live-24-1-2 iso-scan/filename=\$isofile rd.live.image quiet
-		initrd (loop)/isolinux/initrd.img
-	}
-	menuentry \"Gentoo\" {
-		set isofile=\"/linux.iso\"
-		loopback loop \$isofile
-		linux (loop)/isolinux/gentoo root=/dev/ram0 init=/linuxrc aufs looptype=squashfs loop=/image.squashfs cdroot isoboot=\$isofile vga=791 splash=silent,theme:default console=tty0
-		initrd (loop)/isolinux/gentoo.xz 
-	}
-	menuentry \"Kali Linux\" {
-		set isofile=\"/linux.iso\"
-		loopback loop \$isofile
-		linux (loop)/live/vmlinuz boot=live findiso=\$isofile noconfig=sudo username=root hostname=kali
-		initrd (loop)/live/initrd.img
-	}
-	menuentry \"Linux Mint\" {
-		set isofile=\"/linux.iso\"
-		loopback loop \$isofile
-		linux (loop)/casper/vmlinuz boot=casper iso-scan/filename=\$isofile noeject noprompt 
-		initrd (loop)/casper/initrd.lz
-	}
-	menuentry \"OpenSUSE $(gettext -s 'Live')\" {
-		set isofile=\"/linux.iso\"
-		loopback loop \$isofile
-		set imgdevpath=\"/dev/disk/by-uuid/$uuid\"
-		linux (loop)/boot/x86_64/loader/linux isofrom_device=\$imgdevpath isofrom_system=\$isofile LANG=en_US.UTF-8
-		initrd (loop)/boot/x86_64/loader/initrd
-	}
-	menuentry \"OpenSUSE $(gettext -s 'Setup')\" {
-		set isofile=\"/linux.iso\"
-		loopback loop \$isofile
-		linux (loop)/boot/x86_64/loader/linux install=hd:\$isofile
-		initrd (loop)/boot/x86_64/loader/initrd
-	}
-	menuentry \"Tails\" {
-		set isofile=\"/linux.iso\"
-		loopback loop \$isofile
-		linux (loop)/live/vmlinuz2 boot=live config findiso=\${isofile} live-media=removable apparmor=1 security=apparmor nopersistent noprompt timezone=Etc/UTC block.events_dfl_poll_msecs=1000 noautologin module=Tails
-    	initrd (loop)/live/initrd2.img
-	}
+	insmod regexp
+	insmod part_msdos
+
+	for i in /bootableusb/linux/*.iso ; do
+		regexp -s w '^/bootableusb/linux/(.*).iso' \$i 
+		menuentry \"\$w\" \$i {
+			set isofile=\"\$2\"
+			loopback loop \$isofile
+
+			# Ubuntu 64 Bit
+			if [ -s (loop)/casper/vmlinuz.efi ]; then
+				if [ -s /bootableusb/persistent/casper-rw ]; then
+					set opt=\"persistent persistent-path=/bootableusb/persistent\"
+				fi
+				linux (loop)/casper/vmlinuz.efi boot=casper iso-scan/filename=\$isofile quiet splash noprompt noeject \$opt $param
+				initrd (loop)/casper/initrd.lz 
+			# Ubuntu 32 Bit
+			elif [ -s (loop)/casper/vmlinuz ]; then
+				if [ -s /bootableusb/persistent/casper-rw ]; then
+					set opt=\"persistent persistent-path=/bootableusb/persistent\"
+				fi
+				linux (loop)/casper/vmlinuz boot=casper iso-scan/filename=\$isofile quiet splash noprompt noeject \$opt $param
+				initrd (loop)/casper/initrd.lz
+			# Tails
+			elif [ -s (loop)/live/vmlinuz2 ]; then
+				linux (loop)/live/vmlinuz2 boot=live config findiso=\${isofile} live-media=removable apparmor=1 security=apparmor nopersistent noprompt timezone=Etc/UTC block.events_dfl_poll_msecs=1000 noautologin module=Tails $param
+		    	initrd (loop)/live/initrd2.img
+		    # Kali Linux
+			elif [ -s (loop)/dists/kali-rolling/Release ]; then
+				linux (loop)/live/vmlinuz boot=live findiso=\$isofile noconfig=sudo username=root hostname=kali $param
+				initrd (loop)/live/initrd.img
+			# Gparted
+			elif [ -s (loop)/GParted-Live-Version ]; then
+				linux (loop)/live/vmlinuz boot=live union=overlay username=user config components quiet noswap noeject toram=filesystem.squashfs ip=  nosplash findiso=\$isofile $param
+				initrd (loop)/live/initrd.img
+		    # Debian
+			elif [ -s (loop)/live/vmlinuz ]; then
+				linux (loop)/live/vmlinuz boot=live config findiso=\$isofile $param
+				initrd (loop)/live/initrd.img
+			# Fedora
+			elif [ -s (loop)/isolinux/vmlinuz ]; then
+				linux (loop)/isolinux/vmlinuz root=live:CDLABEL=Fedora-WS-Live-24-1-2 iso-scan/filename=\$isofile rd.live.image quiet $param
+				initrd (loop)/isolinux/initrd.img
+			# Gentoo
+			elif [ -s (loop)/isolinux/gentoo ]; then
+				linux (loop)/isolinux/gentoo root=/dev/ram0 init=/linuxrc aufs looptype=squashfs loop=/image.squashfs cdroot isoboot=\$isofile vga=791 splash=silent,theme:default console=tty0 $param
+				initrd (loop)/isolinux/gentoo.xz
+			# Manjaro 64 Bit
+			elif [ -s (loop)/manjaro/isomounts ]; then
+				set imgdevpath=\"/dev/disk/by-uuid/$uuid\"
+				probe -l loop --set=isolabel
+				linux (loop)/manjaro/boot/x86_64/manjaro img_dev=\$imgdevpath img_loop=\$isofile misobasedir=manjaro misolabel=\$isolabel nouveau.modeset=1 i915.modeset=1 radeon.modeset=1 logo.nologo overlay=nonfree nonfree=yes quiet splash $param
+				initrd (loop)/manjaro/boot/intel_ucode.img (loop)/manjaro/boot/x86_64/manjaro.img
+			# Arch Linux 64 Bit
+			elif [ -s (loop)/arch/boot/x86_64/vmlinuz ]; then
+				set imgdevpath=\"/dev/disk/by-uuid/$uuid\"
+				probe -l loop --set=isolabel
+				linux (loop)/arch/boot/x86_64/vmlinuz img_dev=\$imgdevpath img_loop=\$isofile archisolabel=\$isolabel $param
+				initrd (loop)/arch/boot/x86_64/archiso.img
+			# OpenSuse
+			elif [ -s (loop)/boot/x86_64/loader/linux ]; then
+				set imgdevpath=\"/dev/disk/by-uuid/$uuid\"
+				linux (loop)/boot/x86_64/loader/linux isofrom_device=\$imgdevpath isofrom_system=\$isofile LANG=en_US.UTF-8 $param
+				initrd (loop)/boot/x86_64/loader/initrd
+			fi
+		}
+	done
+}
+
+menuentry \"$(gettext -s 'Operating Systems on Disk')\" {
+	insmod regexp
+	insmod part_msdos
+	for x in (hd1,*) ; do
+		if [ -f \"\$x/boot/grub/grub.cfg\" ] ; then
+			configfile \$x/boot/grub/grub.cfg
+			break
+		fi
+	done
+}
+
+menuentry \"$(gettext -s 'Reboot')\" {
+	reboot
 }
 " > "$cfgPath" 
-	awk '/### BEGIN \/etc\/grub.d\/10_linux ###/,/### END \/etc\/grub.d\/10_linux ###/' /boot/grub/grub.cfg >> "$cfgPath"
 }
 
 # /dev/sdX biçiminde belirtilen aygıtı sisteme bağlar.
@@ -256,7 +473,7 @@ function mountUSB() {
 	fi
 
 	# Grub yapılandırma dosyasının bulunduğu konumu değişkene atıyoruz.
-	cfgPath="$partitionPath/grub/grub.cfg" 
+	cfgPath="$partitionPath/bootableusb/grub/grub.cfg" 
 }
 
 function umountUSB() {
@@ -274,196 +491,38 @@ function umountUSB() {
 }
 
 # =================================================================
-# 					İşlemler
+# 					Bilgi Fonksiyonları
 # =================================================================
 
-# Diski biçimlendirip grubu yükler.
-function prepare() {
-	format
-	sleep 5
-	print "Finalizing, please wait..."
-	installGrub
-}
-
-# Diski biçimlendirir.
-function format() {	
-	# Kullanıcıdan veri silinmesini kabul ettiğine dair onay alalım.
-	print "WARNING: ALL DATA ON DEVICE '%s' WILL BE DESTROYED. \nAre you sure you want to continue? (y/n)" "${device}"
-	read -n 1 -r
-	print " "
-	if [[ ! $REPLY =~ ^[YyEe]$ ]] ; then
-		exit 1
-	fi
-
-	# Biçimlendirilecek aygıt üzerinde 
-	# bağlı olan bölümlerin bağı kaldırılıyor.
-	mountedParts=($(mount | grep "${device}" | cut -d' ' -f1))
-	for part in "${mountedParts[@]}" ; do
-		umount "${part}" >& /dev/null
-		returnCodes=$?
-		if [[ $returnCodes != 0 ]] ; then
-			printE "Error: the device is in use by another process.\nPlease close any other process that may be accessing the device.\nError Code: %s" "${returnCodes}"
-			exit 1
-		fi
-	done
-
-	checkDependencies mkdosfs
-	parted -s "$device" mklabel msdos
-	parted -s "$device" mkpart primary fat32 4MiB -- -1s
-	blockdev --rereadpt "$device" || true
-	partprobe "$device"
-	sleep 3
-	partition=`ls --color=no -1 "$device"* | grep -ve "$device"'$'`
-	"$mkdosfs" -F 32 -n 'BOOTABLEUSB' "$partition" >& /dev/null
-}
-
-# Grubu yükler.
-function installGrub() {
-	mountUSB
-
-	grub-install --target=i386-pc --boot-directory="$partitionPath" "$device" >& /dev/null
-
-	mkdir -p "$(dirname "${cfgPath}")"
-	writeGrubCfg
-
-	umountUSB
-}
-
-# Grub ayarlarını günceller.
-function updateGrub() {
-	mountUSB
-	writeGrubCfg
-	umountUSB
-}
-
-# Kalıp dosyasını usb belleğin içine açar.
-function extract() {
-	isoMountPath="/media/bootableusb_iso_$(date +%s)_$$"
-	mkdir -p "$isoMountPath"
-	if [ -f "$isoPath" ]; then
-		mount -o loop,ro -t udf,iso9660 "$isoPath" "$isoMountPath"
+# Yardım sayfasını içerir.
+function displayHelp() {
+	if [[ "$(dirname $(readlink -f $0) | grep '/usr/bin')" != "" ]]; then
+		temp=$(man bootableusb)
 	else
-		mount -o ro "$isoPath" "$isoMountPath"
+		temp=$(man "../man/bootableusb.1.tr")
 	fi
-
-	mountUSB
-
-	freeSpace=$(df --block-size 1 "$partitionPath" | grep "$partition" | awk '{print $4}')
-	neededSpace=$(du -s "$isoMountPath" --bytes | awk '{print $1}')
-	((neededSpace = neededSpace + 1000 * 1000 * 10))
-
-	if [[ "$neededSpace" -gt "$freeSpace" ]]; then
-		printE "Hata: Bellek üzerinde yeteri kadar boş alan yok."
-		umount $isoMountPath
-		exit 1
-	fi
-
-	print "Copying files..."
-	rsync -rlt --info=progress2 "$isoMountPath"/* "$partitionPath"/
-	sync
-
-	umount $isoMountPath
-	umountUSB
-	
+	echo "$temp"
 }
 
-# Diskteki grubu onarır.
-function repairGrub() {
-	grub-install $device
-	print "Finalizing, please wait..."
-	sleep 2
-	update-grub
+# Yazılım sürümünü yazdırır.
+function displayVersion() {
+	printf "bootableusb v0.4"
 }
 
-# Verilen parametrelere göre çalışma hazırlığını yapar.
-function main() {
-	while [ ! "$#" -eq 0 ]; do
-		case "$1" in
-			'--help'|'-h')
-				displayHelp
-				exit 0;;
-			'--version')
-				displayVersion
-				exit 0;;
-			'--listDevices'|'-l')
-				displayDevices
-				exit 0;;
-			'--verbose'|'-v')
-				verbose='1';;
-			'--prepare')
-				method='prepare'
-				shift
-				device=$(readlink -f "$1");;
-			'--format')
-				method='format'
-				shift
-				device=$(readlink -f "$1");;
-			'--installGrub')
-				method='installGrub'
-				shift
-				device=$(readlink -f "$1");;
-			'--extract')
-				method='extract'
-				shift
-				isoPath=$(readlink -f "$1")
-				shift
-				device=$(readlink -f "$1");;
-			'--updateGrub')
-				method='updateGrub'
-				shift
-				device=$(readlink -f "$1");;
-			'--repairGrub')
-				method='repairGrub'
-				shift
-				device=$(readlink -f "$1");;
-			* )
-				printE "Error: unknown option - '%s'" "$1"
-				exit 1;;
-		esac
-
-		shift
-	done
-
-	# Aygıt yoksa yazılım sonlandırılır.
-	if [[ "${device}" == "" ]]; then
-		displayHelp
-		exit 1
-	elif [[ $(lsblk -d -p -o MODEL,SIZE,NAME | grep "${device}") == "" ]]; then
-		print "Error: '%s' device not found." "${device}"
-		exit 1
-	fi
-
-	# Yönetici yetkileriyle çalışmıyorsa yazılım sonlandırılır.
-	if [[ $(id -u) != 0 ]]; then
-		printE "Error: you should run this script as root!"
-		exit 1
-	fi
-
-	case "$method" in
-		'prepare')
-			prepare
-			;;
-		'format')
-			format
-			;;
-		'installGrub')
-			installGrub
-			;;
-		'extract')
-			extract
-			;;
-		'updateGrub')
-			updateGrub
-			;;
-		'repairGrub')
-			repairGrub
-			;;
-		* )
-			print "Error: no install method specified!"
-			displayHelp
-			exit 1;;
-	esac
+# Bilgisayara bağlı aygıtları listeler.
+function displayDevices() {
+	print "==========================================="
+	printS "All Storage Devices"
+	allDevices=$(lsblk -d -p -o MODEL,SIZE,NAME | grep "/dev/sd")
+	printf "${allDevices} \n"
+	print "==========================================="
 }
+
+export LOCPATH=$SNAP/usr/lib/locale
+export MANPATH=$SNAP/usr/share/man
+export GROFF_FONT_PATH=$SNAP/usr/share/groff/1.22.3/font
+export GROFF_TMAC_PATH=$SNAP/usr/share/groff/1.22.3/tmac
+export TEXTDOMAINDIR=$SNAP/usr/share/locale
 
 export TEXTDOMAIN=bootableusb
 
@@ -471,5 +530,6 @@ isoPath=''
 method=''
 device=''
 verbose='0'
+size=0
 
 main $1 $2 $3 $4 $5 $6
