@@ -398,7 +398,8 @@ submenu \"$(gettext -s 'Boot Linux ISO Image')\" {
 				initrd (loop)/live/initrd.img
 			# Fedora
 			elif [ -s (loop)/isolinux/vmlinuz ]; then
-				linux (loop)/isolinux/vmlinuz root=live:CDLABEL=Fedora-WS-Live-24-1-2 iso-scan/filename=\$isofile rd.live.image quiet $param
+				probe -l loop --set=isolabel
+				linux (loop)/isolinux/vmlinuz root=live:CDLABEL=\$isolabel iso-scan/filename=\$isofile rd.live.image quiet $param
 				initrd (loop)/isolinux/initrd.img
 			# Gentoo
 			elif [ -s (loop)/isolinux/gentoo ]; then
@@ -506,7 +507,7 @@ function displayHelp() {
 
 # Yazılım sürümünü yazdırır.
 function displayVersion() {
-	printf "bootableusb v0.4"
+	printf "bootableusb v0.4 \n"
 }
 
 # Bilgisayara bağlı aygıtları listeler.

@@ -43,8 +43,8 @@ Evet çok basit görünse de tüm marifet grub yapılandırmasında bitiyor. Gru
 **Ubuntu**
 ```
 sudo add-apt-repository ppa:bugra9/ppa
-sudo apt update
-sudo apt install bootableusb
+sudo apt-get update
+sudo apt-get install bootableusb
 ```
 
 **Arch Linux**
@@ -146,8 +146,8 @@ Kaynak Kodlar: <https://github.com/bugra9/BootableUSB/blob/master/src/bootableus
 
 ## Notlar
 **Lisans**  
-GPLv3 <https://github.com/bugra9/BootableUSB/blob/master/LICENSE>
-Bu programın KESİNLİKLE HİÇBİR TEMİNATI YOKTUR
+GPLv3 <https://github.com/bugra9/BootableUSB/blob/master/LICENSE>  
+Bu programın KESİNLİKLE HİÇBİR TEMİNATI YOKTUR  
 
 **Yararlanılan Kaynaklar**  
 <https://www.gnu.org/software/grub/manual/grub.html>  
