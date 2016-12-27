@@ -69,6 +69,15 @@ Yazılımı isterseniz yüklemeden kullanabilirsiniz. Bu durumda dil İngilizce 
 ./bootableusb
 ```
 
+## Desteklenen Dağıtımlar
+- Ubuntu tabanlı dağıtımlar (Ubuntu, Linux Mint, Elementary OS, Zorin OS vs.)
+- Debian tabanlı dağıtımlar (Debian, Kali Linux, Tails, Gparted vs.)
+- Fedora
+- Arch Linux
+- Manjaro
+- Remix OS (Android Tabanlı)
+- Windows
+
 ## Seçenekler
 
 ```

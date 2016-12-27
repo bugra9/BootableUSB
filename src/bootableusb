@@ -422,6 +422,10 @@ submenu \"$(gettext -s 'Boot Linux ISO Image')\" {
 				set imgdevpath=\"/dev/disk/by-uuid/$uuid\"
 				linux (loop)/boot/x86_64/loader/linux isofrom_device=\$imgdevpath isofrom_system=\$isofile LANG=en_US.UTF-8 $param
 				initrd (loop)/boot/x86_64/loader/initrd
+			# Remix OS
+			elif [ -s (loop)/isolinux/remixos.png ]; then
+				linux (loop)/kernel iso-scan/filename=\$isofile androidboot.selinux=permissive quiet SERIAL=random logo.showlogo=1 SRC= DATA= DATA_IN_MEM=1 $param
+				initrd (loop)/initrd.img
 			fi
 		}
 	done
