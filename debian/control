@@ -10,6 +10,6 @@ Homepage: https://github.com/bugra9/BootableUSB
 
 Package: bootableusb
 Architecture: all
-Depends: grub-pc-bin, grub-efi-amd64-bin
+Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: Create bootable usb drives
  BootableUSB allows you to create bootable USB drives for Windows and Linux distributions.
