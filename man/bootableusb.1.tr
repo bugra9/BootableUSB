@@ -1,4 +1,4 @@
-.TH BOOTABLEUSB "1" "November 2016" "bootableusb v0.4"
+.TH BOOTABLEUSB "1" "November 2016" "bootableusb v0.5"
 .SH İSİM
 bootableusb \- Ön yüklemeli USB sürücü oluştur
 .SH KULLANIM 
@@ -43,9 +43,6 @@ BOYUT: bu kalıp dosyasına megabyte olarak ne kadar ekleneceği. Örn: 1024, 20
 Usb belleği biçimlendirir.
 .br
 Dikkat: Aygıt içerisinde bulunan tüm veriler silinecektir.
-.SS "--installGrub:"
-.IP
-Grubu kurar ve yapılandırmasını ayarlar. Biçimlendirme istenmeyen durumlarda kullanılır.
 .SS "--verbose:"
 .IP
 Her adımda ne yapıldığını açıklar.

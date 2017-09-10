@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # =================================================================
-# BootableUSB v0.4
+# BootableUSB v0.5
 # 
 # @link https://github.com/bugra9/BootableUSB
 # @author bugra9 https://github.com/bugra9
@@ -15,28 +15,30 @@
 # =================================================================
 # 					İçindekiler
 # 					
-# 	1. Ana Fonksiyonlar ........................ 43
-# 	1.1. prepare ............................... 48
-# 	1.2. format ................................ 56
-# 	1.3. installGrub ........................... 88
-# 	1.4. updateGrub ............................ 103
-# 	1.5. persistent ............................ 109
-# 	1.6. resizePersistent ...................... 122
-# 	1.7. extract ............................... 133
-# 	1.8. repairGrub ............................ 162
-# 	1.9. main .................................. 170
+# 	1. Ana Fonksiyonlar ........................ 46
+# 	1.1. prepare ............................... 50
+# 	1.2. format ................................ 72
+# 	1.2. formatMBR ............................. 107
+# 	1.2. formatGPT ............................. 120
+# 	1.2. formatHybrid .......................... 137
+# 	1.3. installGrub ........................... 165
+# 	1.4. updateGrub ............................ 183
+# 	1.5. persistent ............................ 189
+# 	1.6. resizePersistent ...................... 202
+# 	1.7. extract ............................... 213
+# 	1.8. repairGrub ............................ 242
+# 	1.9. main .................................. 250
 # 	
-# 	2. Yardımcı Fonksiyonlar ................... 277
-# 	2.1. print ................................. 285
-# 	2.2. checkDependencies ..................... 305
-# 	2.3. writeGrubCfg .......................... 319
-# 	2.4. mountUSB .............................. 447
-# 	2.5. umountUSB ............................. 479
+# 	2. Yardımcı Fonksiyonlar ................... 366
+# 	2.1. print ................................. 369
+# 	2.3. writeGrubCfg .......................... 410
+# 	2.4. mountUSB .............................. 543
+# 	2.5. umountUSB ............................. 590
 # 	
-# 	3. Bilgi Fonksiyonları ..................... 493
-# 	3.1. displayHelp ........................... 498
-# 	3.2. displayVersion ........................ 508
-# 	3.3. displayDevices ........................ 513
+# 	3. Bilgi Fonksiyonları ..................... 617
+# 	3.1. displayHelp ........................... 621
+# 	3.2. displayVersion ........................ 631
+# 	3.3. displayDevices ........................ 636
 # 	
 # =================================================================
 
@@ -46,21 +48,37 @@
 
 # (install) Diski biçimlendirip grubu yükler.
 function prepare() {
+	# Öntanım yapılıyor...
+	if [[ $scheme == "hybrid" ]] ; then
+		systemType="all"
+	elif [[ $scheme == "gpt" ]] ; then
+		systemType="uefi"
+	fi
+
 	format
+	
 	sleep 5
-	print "Finalizing, please wait..."
+	print "v1" "Finalizing, please wait..."
+	
 	installGrub
+	
+	mountUSB
+	mkdir -p "$partitionDataPath/bootableusb/linux"
+	mkdir -p "$partitionDataPath/bootableusb/persistent"
+	umountUSB
 }
 
 # Diski biçimlendirir.
 function format() {	
 	# Kullanıcıdan veri silinmesini kabul ettiğine dair onay alalım.
-	print "WARNING: ALL DATA ON DEVICE '%s' WILL BE DESTROYED. \nAre you sure you want to continue? (y/n)" "${device}"
-	read -n 1 -r
-	print " "
-	ch=$(gettext -s -e "WARNING: ALL DATA ON DEVICE '%s' WILL BE DESTROYED. \nAre you sure you want to continue? (y/n)" | grep "\(\K([^/]+)" -oP)
-	if [[ ! $REPLY == "$ch" ]] ; then
-		exit 1
+	if [[ $verbose != 0 ]] ; then
+		print "WARNING: ALL DATA ON DEVICE '%s' WILL BE DESTROYED. \nAre you sure you want to continue? (y/n)" "${device}"
+		read -n 1 -r
+		print " "
+		ch=$(gettext -s -e "WARNING: ALL DATA ON DEVICE '%s' WILL BE DESTROYED. \nAre you sure you want to continue? (y/n)" | grep "\(\K([^/]+)" -oP)
+		if [[ ! $REPLY == "$ch" ]] ; then
+			exit 1
+		fi
 	fi
 	# Biçimlendirilecek aygıt üzerinde 
 	# bağlı olan bölümlerin bağı kaldırılıyor.
@@ -74,24 +92,86 @@ function format() {
 		fi
 	done
 
-	checkDependencies mkdosfs
+	dd if=/dev/zero "of=$device" bs=4M count=1
+	sync
+
+	if [[ $scheme == "mbr" ]] ; then
+		formatMBR
+	elif [[ $scheme == "gpt" ]] ; then
+		formatGPT
+	elif [[ $scheme == "hybrid" ]] ; then
+		formatHybrid
+	fi
+}
+
+function formatMBR() {
 	parted -s "$device" mklabel msdos
-	parted -s "$device" mkpart primary fat32 4MiB -- -1s
+	parted -s "$device" mkpart primary fat32 4 50
+	parted -s "$device" mkpart primary ntfs 50 -- -1s
 	blockdev --rereadpt "$device" || true
 	partprobe "$device"
 	sleep 3
-	partition=`ls --color=no -1 "$device"* | grep -ve "$device"'$'`
-	"$mkdosfs" -F 32 -n 'BOOTABLEUSB' "$partition" >& /dev/null
+	# EFI bölümünü fat32 olarak biçimlendirelim.
+	mkfs.vfat -F 32 "${device}1" >& /dev/null
+	# Veri bölümünü ntfs olarak biçimlendirelim.
+	mkfs.ntfs --quick "${device}2" >& /dev/null
+}
+
+function formatGPT() {
+	# Tüm bölümleri silelim.
+	sgdisk --zap-all "$device" >& /dev/null
+	# 50M boyutunda EFI için bölüm oluşturalım.
+	sgdisk --new 1::+50M --typecode 1:ef00 --change-name 1:"EFI System Partition" "$device" >& /dev/null
+	# Geri kalan alana da normal kullanım için bölüm atayalım.
+	sgdisk --new 2::: --typecode 2:0C01 --change-name 2:"BOOTABLEUSB" "$device" >& /dev/null
+	# Aygıttaki tüm bölümleri ayıralım.
+	umount --force ${device}* 2>/dev/null || true
+	# EFI bölümünü fat32 olarak biçimlendirelim.
+	mkfs.vfat -F 32 "${device}1" >& /dev/null
+	# Veri bölümünü ntfs olarak biçimlendirelim.
+	mkfs.ntfs --quick "${device}2" >& /dev/null
+	# Aygıttaki tüm bölümleri ayıralım.
+	umount --force ${device}* 2>/dev/null || true
+}
+
+function formatHybrid() {
+	# Tüm bölümleri silelim.
+	sgdisk --zap-all "$device" >& /dev/null
+	# 1M boyutunda bios başlatma bölümü oluşturalım.
+	sgdisk --new 1::+4M --typecode 1:ef02 --change-name 1:"BIOS Boot Partition" "$device" >& /dev/null
+	# 50M boyutunda EFI için bölüm oluşturalım.
+	sgdisk --new 2::+50M --typecode 2:ef00 --change-name 2:"EFI System Partition" "$device" >& /dev/null
+	# Geri kalan alana da normal kullanım için bölüm atayalım.
+	sgdisk --new 3::: --typecode 3:0C01 --change-name 3:"BOOTABLEUSB" "$device" >& /dev/null
+	# Aygıttaki tüm bölümleri ayıralım.
+	umount --force ${device}* 2>/dev/null || true
+	# GPT ve MBR bölümleme tablolarının beraber kullanımını ayarlayalım.
+	sgdisk --hybrid 1:2:3 "$device" >& /dev/null
+	# Grubun olacağı bölümü başlatılabilir olarak işaretleyelim.
+	sgdisk --attributes 2:set:2 "$device" >& /dev/null
+	# Aygıttaki tüm bölümleri ayıralım.
+	umount --force ${device}* 2>/dev/null || true
+	# İlk bölümü sıfırlarla doldurarak biçimlendirelim.
+	dd if=/dev/zero of=${device}1 bs=4M count=1 >& /dev/null
+	# EFI bölümünü fat32 olarak biçimlendirelim.
+	mkfs.vfat -F 32 "${device}2" >& /dev/null
+	# Veri bölümünü ntfs olarak biçimlendirelim.
+	mkfs.ntfs --quick "${device}3" >& /dev/null
+	# Aygıttaki tüm bölümleri ayıralım.
+	umount --force ${device}* 2>/dev/null || true
 }
 
 # Grubu yükler.
 function installGrub() {
 	mountUSB
 
-	grub-install --target=i386-pc --boot-directory="$partitionPath/bootableusb" "$device" >& /dev/null
+	if [[ $systemType != "uefi" ]] ; then
+		grub-install --target=i386-pc --boot-directory="$partitionGrubPath/bootableusb" "$device" >& /dev/null
+	fi
 
-	mkdir -p "$partitionPath/bootableusb/linux"
-	mkdir -p "$partitionPath/bootableusb/persistent"
+	if [[ $systemType != "bios" ]] ; then
+		grub-install --target=x86_64-efi --efi-directory="$partitionGrubPath" --boot-directory="$partitionGrubPath/bootableusb" --removable >& /dev/null
+	fi
 
 	mkdir -p "$(dirname "${cfgPath}")"
 	writeGrubCfg
@@ -113,7 +193,7 @@ function persistent() {
 	sync
 	mkfs.ext4 -F $tmpdir/casper-rw
 	mountUSB
-	tar -czf "$partitionPath/bootableusb/persistent/$1.tar.gz" -C $tmpdir casper-rw
+	tar -czf "$partitionDataPath/bootableusb/persistent/$1.tar.gz" -C $tmpdir casper-rw
 	sync
 	rm -r "$tmpdir"
 	umountUSB
@@ -121,11 +201,11 @@ function persistent() {
 
 function resizePersistent() {
 	mountUSB
-	e2fsck -fy "$partitionPath/bootableusb/persistent/casper-rw"
-	dd if=/dev/zero bs=1M count=$1 >> "$partitionPath/bootableusb/persistent/casper-rw"
+	e2fsck -fy "$partitionDataPath/bootableusb/persistent/casper-rw"
+	dd if=/dev/zero bs=1M count=$1 >> "$partitionDataPath/bootableusb/persistent/casper-rw"
 	sync
-	e2fsck -fy "$partitionPath/bootableusb/persistent/casper-rw"
-	resize2fs "$partitionPath/bootableusb/persistent/casper-rw"
+	e2fsck -fy "$partitionDataPath/bootableusb/persistent/casper-rw"
+	resize2fs "$partitionDataPath/bootableusb/persistent/casper-rw"
 	umountUSB
 }
 
@@ -141,7 +221,7 @@ function extract() {
 
 	mountUSB
 
-	freeSpace=$(df --block-size 1 "$partitionPath" | grep "$partition" | awk '{print $4}')
+	freeSpace=$(df --block-size 1 "$partitionDataPath" | grep "$partitionData" | awk '{print $4}')
 	neededSpace=$(du -s "$isoMountPath" --bytes | awk '{print $1}')
 	((neededSpace = neededSpace + 1000 * 1000 * 10))
 
@@ -152,7 +232,7 @@ function extract() {
 	fi
 
 	print "Copying files..."
-	rsync -rlt --info=progress2 "$isoMountPath"/* "$partitionPath"/
+	rsync -rlt --info=progress2 "$isoMountPath"/* "$partitionDataPath"/
 	sync
 	umount $isoMountPath
 	umountUSB
@@ -180,7 +260,15 @@ function main() {
 				displayDevices
 				exit 0;;
 			'--verbose')
-				verbose='1';;
+				verbose=2;;
+			'--silent')
+				verbose=0;;
+			'--scheme')
+				shift
+				scheme=$1;;
+			'--type')
+				shift
+				systemType=$1;;
 			'--install'|'-i')
 				method='prepare'
 				shift
@@ -283,41 +371,44 @@ function print_i18n() {
 	printf "${temp}\n" "$2" $3 $4
 }
 function print() {
-	print_i18n "$1" "$2" "$3" "$4"
+	if [[ ("$1" != 'v0' && "$1" != 'v1' && "$1" != 'v2') ]]; then
+		print_i18n "$1" "$2" "$3" "$4"
+	elif [[ ("$1" == 'v0') || 
+				("$1" == 'v1' && $verbose != 0) || 
+				("$1" == 'v2' && $verbose == 2) ]]; then
+		print_i18n "$2" "$3" "$4"
+	fi
 }
 function printV() {
-	echo -en "\033[0;33m"
-	print_i18n "$1" "$2" "$3" "$4"
-	tput sgr0
+	if [[ $verbose != 0 ]]; then
+		echo -en "\033[0;33m"
+	fi
+	print "$1" "$2" "$3" "$4"
+	if [[ $verbose != 0 ]]; then
+		tput sgr0
+	fi
 }
 function printE() {
-	echo -en "\033[0;31m"
-	print_i18n "$1" "$2" "$3" "$4"
-	tput sgr0
+	if [[ $verbose != 0 ]]; then
+		echo -en "\033[0;31m"
+	fi
+	print "$1" "$2" "$3" "$4"
+	if [[ $verbose != 0 ]]; then
+		tput sgr0
+	fi
 }
 function printS() {
-	echo -en "\033[0;32m"
-	print_i18n "$1" "$2" "$3" "$4"
-	tput sgr0
-}
-
-# Fat32 türünde biçimlendirecek yazılım aranır. Yoksa hata iletisi gösterilip çıkış yapılır.
-function checkDependencies() {
-	if [[ "$1" == 'mkdosfs' ]]; then
-		mkdosfs=''
-		if which 'mkdosfs' > /dev/null; then
-			mkdosfs='mkdosfs'
-		elif which 'make.msdos' > /dev/null; then
-			mkdosfs='mkfs.msdos'
-		else
-			printE "Error: mkdosfs or mkfs.msdos program not found!"
-			exit 1
-		fi
+	if [[ $verbose != 0 ]]; then
+		echo -en "\033[0;32m"
+	fi
+	print "$1" "$2" "$3" "$4"
+	if [[ $verbose != 0 ]]; then
+		tput sgr0
 	fi
 }
 
 function writeGrubCfg() {
-	uuid=$(blkid -o value -s UUID "$partition")
+	uuid=$(blkid -o value -s UUID "$partitionData")
 	param=""
 	echo "
 insmod fat
@@ -451,46 +542,73 @@ menuentry \"$(gettext -s 'Reboot')\" {
 # /dev/sdX biçiminde belirtilen aygıtı sisteme bağlar.
 function mountUSB() {
 	# Cihaz üzerindeki tüm bölümleri okuyup dizi olarak tanımlıyoruz.
-	partition=($(ls --color=no -1 "${device}"*))
+	partition2=($(ls --color=no -1 "${device}"*))
 
-	# Dizinin uzunluğu 2 değilse sorun var demektir. (/dev/sdc /dev/sdc1)
-	if [[ ${#partition[@]} != 2 ]] ; then
+	# Dizinin uzunluğu 3 den küçükse sorun var demektir. (/dev/sdc /dev/sdc1)
+	if [[ ${#partition2[@]} < 3 ]] ; then
 		printE "Error: this drive contains multiple partitions!"
 		exit 1
 	fi
 
 	# Dizideki son eleman bizim aradığımız bölüm
-	partition=${partition[-1]}
+	partitionData=${partition2[-1]}
+	# Dizideki sondan ikinci eleman bizim aradığımız bölüm
+	partitionGrub=${partition2[-2]}
 
 	# Eğer bağlıysa bağlandığı noktayı öğreniyoruz.
 	# Bağlı değilse belirlediğimiz noktaya bağlıyoruz.
-	temp=($(mount | grep "$partition"))
+	temp=($(mount | grep "$partitionData"))
 	if [[ "${temp}" == "" ]] ; then
-		partitionPath="/media/bootableusb_$(date +%s)_$$"
-		mkdir -p "$partitionPath"
-		mount "$partition" "$partitionPath"
+		partitionDataPath="/media/bootableusb_$(date +%s)_$$"
+		mkdir -p "$partitionDataPath"
+		mount "$partitionData" "$partitionDataPath"
 		# Yazılım aracılığıyla bağladığımız için işlemlerin 
 		# sonucunda bağı kaldırmamız gerekiyor.
-		mountCond="1"
+		mountCondD="1"
 	else
-		partitionPath="${temp[2]}"
-		mountCond="0"
+		partitionDataPath="${temp[2]}"
+		mountCondD="0"
+	fi
+
+	temp2=($(mount | grep "$partitionGrub"))
+	if [[ "${temp2}" == "" ]] ; then
+		partitionGrubPath="/media/bootableusb_2$(date +%s)_$$"
+		mkdir -p "$partitionGrubPath"
+		mount "$partitionGrub" "$partitionGrubPath"
+		# Yazılım aracılığıyla bağladığımız için işlemlerin 
+		# sonucunda bağı kaldırmamız gerekiyor.
+		mountCondG="1"
+	else
+		partitionGrubPath="${temp2[2]}"
+		mountCondG="0"
 	fi
 
 	# Grub yapılandırma dosyasının bulunduğu konumu değişkene atıyoruz.
-	cfgPath="$partitionPath/bootableusb/grub/grub.cfg" 
+	cfgPath="$partitionGrubPath/bootableusb/grub/grub.cfg" 
 }
 
 function umountUSB() {
 	sync
 
-	if [[ "$mountCond" == "1" ]] ; then
-		umount "${partitionPath}" >& /dev/null
+	if [[ "$mountCondD" == "1" ]] ; then
+		umount "${partitionDataPath}" >& /dev/null
 		returnCodes=$?
 		if [[ $returnCodes != 0 ]] ; then
-			printE "Error: unable to securely unmount %s" "${partitionPath}"
+			printE "Error: unable to securely unmount %s" "${partitionDataPath}"
 		else
-			rmdir "${partitionPath}"
+			sleep 1
+			rmdir "${partitionDataPath}"
+		fi
+	fi
+
+	if [[ "$mountCondG" == "1" ]] ; then
+		umount "${partitionGrubPath}" >& /dev/null
+		returnCodes=$?
+		if [[ $returnCodes != 0 ]] ; then
+			printE "Error: unable to securely unmount %s" "${partitionGrubPath}"
+		else
+			sleep 1
+			rmdir "${partitionGrubPath}"
 		fi
 	fi
 }
@@ -511,30 +629,34 @@ function displayHelp() {
 
 # Yazılım sürümünü yazdırır.
 function displayVersion() {
-	printf "bootableusb v0.4 \n"
+	printf "bootableusb v0.5 \n"
 }
 
 # Bilgisayara bağlı aygıtları listeler.
 function displayDevices() {
-	print "==========================================="
-	printS "All Storage Devices"
+	print "v1" "==========================================="
+	printS "v1" "All Storage Devices"
 	allDevices=$(lsblk -d -p -o MODEL,SIZE,NAME | grep "/dev/sd")
 	printf "${allDevices} \n"
-	print "==========================================="
+	print "v1" "==========================================="
 }
 
-export LOCPATH=$SNAP/usr/lib/locale
-export MANPATH=$SNAP/usr/share/man
-export GROFF_FONT_PATH=$SNAP/usr/share/groff/1.22.3/font
-export GROFF_TMAC_PATH=$SNAP/usr/share/groff/1.22.3/tmac
-export TEXTDOMAINDIR=$SNAP/usr/share/locale
-
-export TEXTDOMAIN=bootableusb
+# Snap paketleme sistemi için hazırlık
+if [[ "$SNAP" != "" ]] ; then
+	export LOCPATH=$SNAP/usr/lib/locale
+	export MANPATH=$SNAP/usr/share/man
+	export GROFF_FONT_PATH=$SNAP/usr/share/groff/1.22.3/font
+	export GROFF_TMAC_PATH=$SNAP/usr/share/groff/1.22.3/tmac
+	export TEXTDOMAINDIR=$SNAP/usr/share/locale
+fi
+	export TEXTDOMAIN=bootableusb
 
 isoPath=''
 method=''
 device=''
-verbose='0'
+verbose=1
 size=0
+systemType='bios' #bios, uefi, all
+scheme='mbr' #mbr, gpt, hybrid
 
 main $1 $2 $3 $4 $5 $6

@@ -1,6 +1,6 @@
 **UYARI:** Bu yazılım geliştirme aşamasındadır ve kullanım sonucu veri kaybına uğratabilir.
 
-# BootableUSB v0.4
+# BootableUSB v0.5
 Ön yüklemeli usb bellek oluşturmayı en kolay hale getiren yazılım. Bir kere yükle bir daha hep ön yüklemeli kalsın felsefesini benimser.
 
 Bu yazılımla oluşturulmuş usb bellek ile yapabilecekleriniz;
@@ -97,6 +97,18 @@ bootableusb --listDevices komutuyla bağlı aygıtlar listelenip ilgili aygıt a
 	Usb belleği biçimlendirir, grubu kurar ve yapılandırmasını ayarlar. 
 	Kısaca kullanılmaya hazır duruma getirir.
 	Dikkat: Aygıt içerisinde bulunan tüm veriler silinecektir.
+
+--type SEÇENEK:
+	İstediğiniz türde grub kurulumu yapar.
+	bios: -
+	uefi: -
+	all: her iki grubu da kurar.
+
+--scheme SEÇENEK:
+	Aygıtı hangi tablo ile bölümleyeceğinizi seçin.
+	mbr: -
+	gpt: -
+	hybrid: İki tabloyu da barındıracak şekilde ayarlar.
 
 -u, --updateGrub: 
 	Usb bellekte bulunan grubun ayarlarını günceller. 

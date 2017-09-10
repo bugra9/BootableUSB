@@ -1,4 +1,4 @@
-.TH BOOTABLEUSB "1" "November 2016" "bootableusb v0.4"
+.TH BOOTABLEUSB "1" "November 2016" "bootableusb v0.5"
 .SH NAME
 bootableusb \- Create bootable USB drives
 .SH SYNOPSIS
@@ -47,9 +47,6 @@ SIZE: want to extend size (MB). Örn: 1024, 2048, 500
 Format your usb drive
 .br
 Warning: All data on device will be destroyed.
-.SS "--installGrub:"
-.IP
-Install grub without format usb drive.
 .SS "--verbose:"
 .IP
 Explain what is being done
