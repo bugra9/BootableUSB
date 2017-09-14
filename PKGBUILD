@@ -1,8 +1,8 @@
 # Maintainer: bugra9 <bugra9@gmail.com>
 
 pkgname=bootableusb
-pkgver=0.5
-pkgrel=4
+pkgver=0.6
+pkgrel=6
 pkgdesc="Create bootable usb drives"
 arch=('i686' 'x86_64')
 url="https://github.com/bugra9/BootableUSB"

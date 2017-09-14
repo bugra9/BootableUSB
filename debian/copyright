@@ -3,7 +3,7 @@ Upstream-Name: bootableusb
 Source: https://github.com/bugra9/BootableUSB
 
 Files: *
-Copyright: 2016 bugra9 <bugra9@gmail.com>
+Copyright: 2017 bugra9 <bugra9@gmail.com>
 License: GPL-3.0+
 
 License: GPL-3.0+
