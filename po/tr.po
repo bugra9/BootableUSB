@@ -67,3 +67,24 @@ msgstr "Disk Üzerindeki İşletim Sistemleri"
 
 msgid "Reboot"
 msgstr "Yeniden Başlat"
+
+msgid "Installing Grub..."
+msgstr "Grub Yükleniyor..."
+
+msgid "Success"
+msgstr "Başarılı"
+
+msgid "Clearing MBR/PBR/GPT structures..."
+msgstr "MBR/PBR/GPT yapıları temizleniyor..."
+
+msgid "Writing master boot record..."
+msgstr "MBR Yazılıyor..."
+
+msgid "Formatting (%s)..."
+msgstr "Biçimlendiriliyor (%s)..."
+
+msgid "Writing GPT..."
+msgstr "GPT Yazılıyor..."
+
+msgid "Writing GPT & MBR..."
+msgstr "GPT & MBR Yazılıyor..."

@@ -1,6 +1,6 @@
 **UYARI:** Bu yazılım geliştirme aşamasındadır ve kullanım sonucu veri kaybına uğratabilir.
 
-# BootableUSB v0.5
+# BootableUSB v0.6
 Ön yüklemeli usb bellek oluşturmayı en kolay hale getiren yazılım. Bir kere yükle bir daha hep ön yüklemeli kalsın felsefesini benimser.
 
 Bu yazılımla oluşturulmuş usb bellek ile yapabilecekleriniz;
@@ -93,9 +93,19 @@ bootableusb --listDevices komutuyla bağlı aygıtlar listelenip ilgili aygıt a
 -l, --listDevices:
 	Bilgisayara bağlı olan aygıtları listeler.
 
+--partitions:
+	Aygıt içerisindeki birimleri bağlama noktalarıyla birlikte gösterir.
+
 -i, --install: 
 	Usb belleği biçimlendirir, grubu kurar ve yapılandırmasını ayarlar. 
 	Kısaca kullanılmaya hazır duruma getirir.
+	Dikkat: Aygıt içerisinde bulunan tüm veriler silinecektir.
+
+--full KALIPKONUMU: 
+	Usb belleği biçimlendirir, grubu kurar ve yapılandırmasını ayarlar.
+	Belirtilen kalıp Windows içinse aygıtta ana dizine çıkarır, değilse
+	kalıbı ilgili dizinin altına kopyalar.
+	Kısaca --install ve --copy işlemlerini gerçekleştirir.
 	Dikkat: Aygıt içerisinde bulunan tüm veriler silinecektir.
 
 --type SEÇENEK:
@@ -116,6 +126,10 @@ bootableusb --listDevices komutuyla bağlı aygıtlar listelenip ilgili aygıt a
 
 -r, --repairGrub: 
 	Disk üzerindeki silinen / bozulan grubu tamir eder.
+
+--copy KALIPKONUMU: 
+	Belirtilen kalıp Windows için ise aygıtta ana dizine çıkarır, 
+	değilse kalıbı ilgili dizinin altına kopyalar.
 
 -e, --extract KALIPKONUMU: 
 	Windows kurulum dosyaları kalıp halinde ise bu komutla kolayca 
@@ -138,6 +152,12 @@ bootableusb --listDevices komutuyla bağlı aygıtlar listelenip ilgili aygıt a
 --installGrub: 
 	Grubu kurar ve yapılandırmasını ayarlar. Biçimlendirme istenmeyen durumlarda kullanılır.
 
+--name ETİKET: 
+	Oluşturulan yeni birim için etiket atar.
+
+
+--silent:
+	Kullanıcı ile etkileşime geçmeden yazılımı devam ettirir, çıktıları renksiz gösterir.
 
 --verbose:
 	Her adımda ne yapıldığını açıklar.

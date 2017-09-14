@@ -72,3 +72,24 @@ msgstr ""
 
 msgid "Reboot"
 msgstr ""
+
+msgid "Installing Grub..."
+msgstr ""
+
+msgid "Success"
+msgstr "Başarılı"
+
+msgid "Clearing MBR/PBR/GPT structures..."
+msgstr ""
+
+msgid "Writing master boot record..."
+msgstr ""
+
+msgid "Formatting (%s)..."
+msgstr ""
+
+msgid "Writing GPT..."
+msgstr ""
+
+msgid "Writing GPT & MBR..."
+msgstr ""
